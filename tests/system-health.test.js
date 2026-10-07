@@ -12,7 +12,7 @@ assert.strictEqual(c.status,'ready');assert.strictEqual(c.label,'已同步');ass
 c=H.calendar([{date:'2026-09-14'}],{ok:true},{academicYear:115,checkedAt:'2026-10-01T00:00:00Z'},now);assert.strictEqual(c.status,'stale');
 c=H.calendar([{date:'2026-09-14'}],{ok:true},{academicYear:115},now);assert.strictEqual(c.status,'unknown');
 assert.strictEqual(H.publicSummary({activity:x,scholarship:s,calendar:H.calendar([{date:'x'}],{ok:false,error:'bad'},{},now)}).status,'error');
-let v=H.versionSummary({pageVersion:'0.7.0',workerVersion:'0.7.0',releaseVersion:'0.7.0',controlled:true,online:true});assert.strictEqual(v.status,'good');assert.strictEqual(v.coherent,true);
-v=H.versionSummary({pageVersion:'0.7.0',workerVersion:'0.7.0',releaseVersion:'0.8.0',controlled:true,online:true});assert.strictEqual(v.status,'update');assert.strictEqual(v.updateAvailable,true);
-v=H.versionSummary({pageVersion:'0.7.0',workerVersion:'0.6.1',releaseVersion:'0.7.0',controlled:true,online:true});assert.strictEqual(v.status,'mismatch');
+let v=H.versionSummary({pageVersion:'0.8.0',workerVersion:'0.8.0',releaseVersion:'0.8.0',controlled:true,online:true});assert.strictEqual(v.status,'good');assert.strictEqual(v.coherent,true);
+v=H.versionSummary({pageVersion:'0.8.0',workerVersion:'0.8.0',releaseVersion:'0.9.0',controlled:true,online:true});assert.strictEqual(v.status,'update');assert.strictEqual(v.updateAvailable,true);
+v=H.versionSummary({pageVersion:'0.8.0',workerVersion:'0.7.0',releaseVersion:'0.8.0',controlled:true,online:true});assert.strictEqual(v.status,'mismatch');
 console.log('system-health.test.js OK');

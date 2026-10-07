@@ -1,0 +1,13 @@
+const assert=require('assert'),fs=require('fs');
+const app=fs.readFileSync('js/app.js','utf8'),css=fs.readFileSync('css/app.css','utf8'),tokens=fs.readFileSync('css/tokens.css','utf8');
+assert(app.includes('class="stat-strip"'));
+assert(app.includes('advanced-filter-panel'));
+assert(app.includes('review-compact-item'));
+assert(app.includes('health-status-list'));
+assert(app.includes('score-${esc(row.fit.tier)}'));
+assert(css.includes('.stat-strip{'));
+assert(css.includes('.review-compact-item{'));
+assert(css.includes('.health-status-row{'));
+assert(tokens.includes('--warning:#e5a84b'));
+assert(tokens.includes('--court:#c49562'));
+console.log('ui-density.test.js OK');
