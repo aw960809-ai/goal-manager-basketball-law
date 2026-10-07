@@ -1,0 +1,14 @@
+const assert=require('assert');
+const fs=require('fs');
+const path=require('path');
+const Opp=require('../js/domain/opportunities.js');
+const payload=JSON.parse(fs.readFileSync(path.join(__dirname,'..','data','activities.json'),'utf8'));
+const cat=Opp.build(payload,{today:'2026-10-07',goals:[]});
+assert.strictEqual(cat.rows.length,payload.events.length);
+assert(cat.recommended.length>0,'公開資料應產生至少一筆推薦活動');
+assert(cat.review.length>0,'待複核資料必須與推薦分流');
+assert(cat.resources.length>0,'常設入口／plan 應進相關資源');
+assert(cat.recommended.every(x=>!x.needsReview&&x.missCount<2&&x.qualityBucket==='candidate'));
+assert(cat.recommended.every(x=>x.fit&&Number.isFinite(x.fit.score)));
+assert(cat.recommended.every(x=>['thu','taichung','central','national'].includes(x.circleKey)));
+console.log('opportunities-public-data.test.js OK');

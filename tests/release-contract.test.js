@@ -1,0 +1,12 @@
+const assert=require('assert'),fs=require('fs'),vm=require('vm');
+const release=JSON.parse(fs.readFileSync('release.json','utf8'));
+const ctx={globalThis:{}};vm.createContext(ctx);vm.runInContext(fs.readFileSync('config/app-config.js','utf8'),ctx);
+const C=ctx.globalThis.GMB_CONFIG;
+assert.strictEqual(C.version,'0.6.1');assert.strictEqual(release.version,C.version);assert.strictEqual(release.autofetch.enabled,true);
+const sw=fs.readFileSync('sw.js','utf8'),html=fs.readFileSync('index.html','utf8');
+assert(sw.includes("const VERSION='0.6.1'"));assert(sw.includes("./release.json"));assert(sw.includes("./js/system-health.js"));
+assert(html.includes('system-health.js?v=0.6.1'));assert(html.includes('data-page="system"'));
+const auto=fs.readFileSync('.github/workflows/autofetch.yml','utf8'),pages=fs.readFileSync('.github/workflows/pages.yml','utf8');
+assert(auto.includes('schedule:'));assert(auto.includes('scholarship_autofetch.py'));assert(auto.includes('autofetch.py --repo . --apply'));assert(auto.includes('scripts/verify.sh'));
+assert(pages.includes('release-preflight.sh'));
+console.log('release-contract.test.js OK');

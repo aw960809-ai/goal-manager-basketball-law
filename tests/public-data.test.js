@@ -1,0 +1,11 @@
+const assert=require('assert');
+const fs=require('fs');
+const path=require('path');
+const p=f=>JSON.parse(fs.readFileSync(path.join(__dirname,'..','data',f),'utf8'));
+const cal=p('school-calendar.json');
+const acts=p('activities.json');
+const sch=p('scholarships.json');
+assert(cal.length>=30);
+assert(Array.isArray(acts.events)&&acts.events.length>0);
+assert(Array.isArray(sch.scholarships)&&sch.scholarships.length>0);
+console.log('public-data.test.js OK');

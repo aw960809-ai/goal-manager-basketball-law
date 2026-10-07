@@ -1,0 +1,14 @@
+const assert=require('assert');
+const H=require('../js/system-health.js');
+const now=Date.parse('2026-10-07T12:00:00Z');
+let x=H.activity({meta:{updatedAt:'2026-10-07T08:00:00Z',totalSources:5,healthySources:5,needsReview:2},events:[{id:'a'}]},{ok:true},now);
+assert.strictEqual(x.status,'fresh');assert.strictEqual(x.count,1);assert.strictEqual(x.sourceText,'5/5 來源正常');
+x=H.activity({meta:{updatedAt:'2026-10-01T08:00:00Z'},events:[]},{ok:true},now);assert.strictEqual(x.status,'stale');
+x=H.activity({}, {ok:false,error:'HTTP 500'}, now);assert.strictEqual(x.status,'error');assert.strictEqual(x.count,null);
+const s=H.scholarship({meta:{updatedAt:'2026-10-07T08:00:00Z',categories:5,healthyCategories:4,eligibilityDetail:{detailVerified:100,detailUnverified:25}},scholarships:[{id:'s'}]},{ok:true},now);
+assert.strictEqual(s.sourceText,'4/5 類別正常');assert.strictEqual(s.verified,100);assert.strictEqual(s.unverified,25);
+assert.strictEqual(H.publicSummary({activity:x,scholarship:s,calendar:H.calendar([{date:'x'}],{ok:true})}).status,'error');
+let v=H.versionSummary({pageVersion:'0.6.1',workerVersion:'0.6.1',releaseVersion:'0.6.1',controlled:true,online:true});assert.strictEqual(v.status,'good');assert.strictEqual(v.coherent,true);
+v=H.versionSummary({pageVersion:'0.6.1',workerVersion:'0.6.1',releaseVersion:'0.7.0',controlled:true,online:true});assert.strictEqual(v.status,'update');assert.strictEqual(v.updateAvailable,true);
+v=H.versionSummary({pageVersion:'0.6.1',workerVersion:'0.5.0',releaseVersion:'0.6.1',controlled:true,online:true});assert.strictEqual(v.status,'mismatch');
+console.log('system-health.test.js OK');

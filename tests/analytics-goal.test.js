@@ -1,0 +1,10 @@
+const assert=require('assert');
+const config=require('../config/app-config.js');global.GMB_CONFIG=config;
+const State=require('../js/core/state.js');global.GMBState=State;
+const Goals=require('../js/domain/goals.js');
+const Analytics=require('../js/domain/analytics.js');
+let s=State.freshState();s=Goals.createPath(s,{direction:'法律能力',milestone:'民法',action:'債總'});const action=s.goals.find(g=>g.level===3);const root=s.goals.find(g=>g.level===1);
+s.studyLogs=[{id:'a',kind:'goal-study',actionId:action.id,label:'債總',durationSeconds:3600,source:'timer',endedAt:'2026-10-07T10:00:00Z',createdAt:'2026-10-07T10:00:00Z'}];
+const ds=Analytics.directionStats(s,s.studyLogs);assert.strictEqual(ds.length,1);assert.strictEqual(ds[0].id,root.id);assert.strictEqual(ds[0].minutes,60);assert.strictEqual(ds[0].sessions,1);
+const ms=Analytics.milestoneStats(s,root.id,s.studyLogs);assert.strictEqual(ms[0].minutes,60);
+console.log('analytics-goal.test.js OK');

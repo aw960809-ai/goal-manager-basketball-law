@@ -1,0 +1,12 @@
+const fs=require('fs'),assert=require('assert');
+const pages=fs.readFileSync('.github/workflows/pages.yml','utf8');
+const deploy=fs.readFileSync('scripts/production-deploy.sh','utf8');
+assert(pages.includes('workflow_run:'));
+assert(pages.includes('Basketball Goal Manager Public Data AutoFetch'));
+assert(pages.includes("github.event.workflow_run.conclusion == 'success'"));
+assert(deploy.includes('goal-manager-basketball-law'));
+assert(deploy.includes('gh repo create'));
+assert(deploy.includes('build_type=workflow'));
+assert(deploy.includes('gh workflow run autofetch.yml'));
+assert(deploy.includes('gh workflow run pages.yml'));
+console.log('deploy-contract.test.js OK');

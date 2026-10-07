@@ -1,0 +1,18 @@
+const assert=require('assert');
+const fs=require('fs');
+const path=require('path');
+const Sch=require('../js/domain/scholarships.js');
+const payload=JSON.parse(fs.readFileSync(path.join(__dirname,'..','data','scholarships.json'),'utf8'));
+const cat=Sch.build(payload,{today:'2026-10-07'});
+assert(cat.recommended.length>0,'公開資料應有通過嚴格資格的獎學金');
+assert(cat.recommended.some(x=>x.specialtyKind==='professional'),'專業證照獎勵應存在');
+assert(cat.recommended.some(x=>x.specialtyKind==='language'),'外語能力獎勵應存在');
+assert(!cat.recommended.some(x=>/嘉義市清寒優秀學生獎學金|金門縣政府獎學金|高雄市清寒優秀學生獎學金/.test(x.title)),'縣市限制項目不得進推薦');
+assert(!cat.recommended.some(x=>/政治系/.test(x.title)),'限定其他科系不得進法律系推薦');
+assert(!cat.recommended.some(x=>x.eligibility.code!=='PASS'));
+assert(cat.review.every(x=>x.bucket==='review'));
+assert(cat.resources.every(x=>x.bucket==='resource'));
+const ex=Sch.exclusionStats(cat.excluded);
+assert((ex.REGION||0)>0,'公開資料應能偵測縣市／地域排除');
+assert((ex.ECONOMIC||0)>0,'公開資料應能偵測經濟弱勢排除');
+console.log('scholarships-public-data.test.js OK');

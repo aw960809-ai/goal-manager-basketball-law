@@ -1,0 +1,11 @@
+const assert=require('assert');
+const config=require('../config/app-config.js');global.GMB_CONFIG=config;
+const State=require('../js/core/state.js');global.GMBState=State;
+const Goals=require('../js/domain/goals.js');
+const Logs=require('../js/domain/study-logs.js');
+let s=State.freshState();s=Goals.createPath(s,{direction:'法律',milestone:'民法',action:'債總'});const action=s.goals.find(g=>g.level===3);
+let r=Logs.manual(s,{actionId:action.id,minutes:30,date:'2026-10-07',label:''},Date.parse('2026-10-07T13:00:00Z'));
+assert.strictEqual(r.log.kind,'goal-study');assert.strictEqual(r.log.source,'manual');assert.strictEqual(r.log.durationSeconds,1800);assert.strictEqual(r.log.label,'債總');
+r=Logs.manual(r.state,{minutes:20,date:'2026-10-07',label:'課堂複習'});assert.strictEqual(r.log.kind,'other-study');assert.strictEqual(r.state.studyLogs.length,2);
+assert.throws(()=>Logs.manual(s,{actionId:'missing',minutes:10,date:'2026-10-07'}),/不存在/);
+console.log('study-logs.test.js OK');

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0f1217">
+  <meta name="color-scheme" content="dark">
+  <title>Basketball Goal Manager</title>
+  <meta name="description" content="東海法律系使用情境的獨立 Basketball Goal Manager">
+  <link rel="manifest" href="./manifest.webmanifest?v=0.6.1">
+  <link rel="icon" href="./assets/icons/icon-192.png?v=0.6.1" sizes="192x192">
+  <link rel="apple-touch-icon" href="./assets/icons/apple-touch-icon.png?v=0.6.1">
+  <link rel="stylesheet" href="./css/tokens.css?v=0.6.1">
+  <link rel="stylesheet" href="./css/app.css?v=0.6.1">
+</head>
+<body>
+<div class="app-shell">
+  <header class="topbar"><div class="topbar-inner"><div class="brand"><div class="brand-mark" aria-hidden="true"></div><div class="brand-copy"><b>Basketball Goal Manager</b><small>東海大學 · 法律學系</small></div></div><span class="version-chip" id="versionChip">v0.6.1</span></div></header>
+  <main>
+    <section class="page active" data-page="home" id="pageHome"></section>
+    <section class="page" data-page="goals" id="pageGoals"></section>
+    <section class="page" data-page="execute" id="pageExecute"></section>
+    <section class="page" data-page="calendar" id="pageCalendar"></section>
+    <section class="page" data-page="analytics" id="pageAnalytics"></section>
+    <section class="page" data-page="opportunities" id="pageOpportunities"></section>
+    <section class="page" data-page="scholarships" id="pageScholarships"></section>
+    <section class="page" data-page="system" id="pageSystem"></section>
+  </main>
+  <nav class="bottom-nav" aria-label="主要導覽"><div class="bottom-nav-inner">
+    <button class="nav-btn active" data-nav="home"><span class="nav-icon">⌂</span><span>首頁</span></button>
+    <button class="nav-btn" data-nav="goals"><span class="nav-icon">◎</span><span>目標</span></button>
+    <button class="nav-btn" data-nav="execute"><span class="nav-icon">◷</span><span>執行</span></button>
+    <button class="nav-btn" data-nav="calendar"><span class="nav-icon">▦</span><span>行事</span></button>
+    <button class="nav-btn" data-nav="analytics"><span class="nav-icon">▥</span><span>分析</span></button>
+  </div></nav>
+</div>
+
+<dialog id="goalWizard"><div class="dialog-body"><div class="dialog-head"><h2>建立第一組目標</h2><button class="dialog-close" data-close-dialog="goalWizard" aria-label="關閉">×</button></div><form id="goalWizardForm" class="form-grid">
+  <div class="field"><label for="directionName">方向 · SEASON GOAL</label><input id="directionName" required placeholder="例如：法律專業能力"></div>
+  <div class="field"><label for="milestoneName">階段目標 · MILESTONE</label><input id="milestoneName" required placeholder="例如：建立民法體系"></div>
+  <div class="field"><label for="actionName">具體行動 · TRAINING</label><input id="actionName" required placeholder="例如：完成債總 Chapter 1"></div>
+  <button class="btn primary wide" type="submit">建立三層目標</button>
+</form></div></dialog>
+
+<dialog id="goalAddDialog"><div class="dialog-body"><div class="dialog-head"><h2 id="goalAddTitle">新增目標</h2><button class="dialog-close" data-close-dialog="goalAddDialog" aria-label="關閉">×</button></div><form id="goalAddForm" class="form-grid">
+  <input type="hidden" id="goalAddLevel"><input type="hidden" id="goalAddParent">
+  <div class="field"><label id="goalAddLabel" for="goalAddName">名稱</label><input id="goalAddName" required></div>
+  <div class="field"><label for="goalAddDate">目標／安排日期（選填）</label><input id="goalAddDate" type="date"></div>
+  <button class="btn primary wide" type="submit">新增</button>
+</form></div></dialog>
+
+<dialog id="goalEditDialog"><div class="dialog-body"><div class="dialog-head"><h2>編輯目標</h2><button class="dialog-close" data-close-dialog="goalEditDialog" aria-label="關閉">×</button></div><form id="goalEditForm" class="form-grid">
+  <input type="hidden" id="goalEditId">
+  <div class="field"><label for="goalEditName">名稱</label><input id="goalEditName" required></div>
+  <div class="field"><label for="goalEditDate">目標／安排日期（選填）</label><input id="goalEditDate" type="date"></div>
+  <button class="btn primary wide" type="submit">儲存變更</button>
+</form></div></dialog>
+
+<dialog id="backfillDialog"><div class="dialog-body"><div class="dialog-head"><h2>補登實際投入</h2><button class="dialog-close" data-close-dialog="backfillDialog" aria-label="關閉">×</button></div><form id="backfillForm" class="form-grid">
+  <div class="field"><label for="backfillTarget">類型／具體行動</label><select id="backfillTarget"></select></div>
+  <div class="field"><label for="backfillDate">日期</label><input id="backfillDate" type="date" required></div>
+  <div class="field"><label for="backfillMinutes">分鐘</label><input id="backfillMinutes" type="number" min="1" max="1440" step="1" required placeholder="例如：30"></div>
+  <div class="field"><label for="backfillLabel">名稱（選填）</label><input id="backfillLabel" placeholder="例如：憲法體系圖建立"></div>
+  <button class="btn primary wide" type="submit">完成補登</button>
+</form></div></dialog>
+
+<dialog id="personalEventDialog"><div class="dialog-body"><div class="dialog-head"><h2>新增個人行事</h2><button class="dialog-close" data-close-dialog="personalEventDialog" aria-label="關閉">×</button></div><form id="personalEventForm" class="form-grid">
+  <div class="field"><label for="personalEventDate">日期</label><input id="personalEventDate" type="date" required></div>
+  <div class="field"><label for="personalEventTitle">事項</label><input id="personalEventTitle" required placeholder="例如：刑法分則小考"></div>
+  <button class="btn primary wide" type="submit">加入行事曆</button>
+</form></div></dialog>
+
+<div class="toast" id="toast" role="status"></div>
+<script src="./config/app-config.js?v=0.6.1"></script>
+<script src="./js/core/state.js?v=0.6.1"></script>
+<script src="./js/core/storage.js?v=0.6.1"></script>
+<script src="./js/domain/goals.js?v=0.6.1"></script>
+<script src="./js/domain/study-logs.js?v=0.6.1"></script>
+<script src="./js/services/timer.js?v=0.6.1"></script>
+<script src="./js/domain/analytics.js?v=0.6.1"></script>
+<script src="./js/domain/opportunities.js?v=0.6.1"></script>
+<script src="./js/domain/scholarships.js?v=0.6.1"></script>
+<script src="./js/system-health.js?v=0.6.1"></script>
+<script src="./js/pwa.js?v=0.6.1"></script>
+<script src="./js/app.js?v=0.6.1"></script>
+</body>
+</html>

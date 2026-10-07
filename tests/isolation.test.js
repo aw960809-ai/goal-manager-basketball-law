@@ -1,0 +1,14 @@
+const assert=require('assert');
+const fs=require('fs');
+const path=require('path');
+const config=require('../config/app-config.js');
+assert.strictEqual(config.storage.key,'gmb-law:v1:state');
+assert.strictEqual(config.storage.idbName,'goal-manager-basketball-law-v1');
+assert.strictEqual(config.pwa.cachePrefix,'gmb-law:pwa:');
+const manifest=JSON.parse(fs.readFileSync(path.join(__dirname,'..','manifest.webmanifest'),'utf8'));
+assert.strictEqual(manifest.id,'/goal-manager-basketball-law/');
+const sw=fs.readFileSync(path.join(__dirname,'..','sw.js'),'utf8');
+assert(sw.includes("CACHE_PREFIX='gmb-law:pwa:'"));
+assert(!sw.includes('thu-goal-personal-v'));
+assert(!sw.includes('law-goal-web-v'));
+console.log('isolation.test.js OK');
