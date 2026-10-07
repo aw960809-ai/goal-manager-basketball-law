@@ -4,7 +4,7 @@
     productId:'gmb-law',
     name:'Basketball Goal Manager',
     shortName:'Court Goals',
-    version:'0.9.0',
+    version:'0.9.1',
     schemaVersion:4,
     profile:Object.freeze({
       institution:'東海大學',

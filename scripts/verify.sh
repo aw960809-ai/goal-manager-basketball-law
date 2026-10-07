@@ -6,8 +6,8 @@ count=0;while IFS= read -r -d '' f; do node --check "$f" >/dev/null;count=$((cou
 for t in tests/*.test.js; do node "$t"; done
 grep -q '"id": "/goal-manager-basketball-law/"' manifest.webmanifest
 grep -q "CACHE_PREFIX='gmb-law:pwa:'" sw.js
-grep -q "version:'0.9.0'" config/app-config.js
-grep -q '"version": "0.9.0"' release.json
+grep -q "version:'0.9.1'" config/app-config.js
+grep -q '"version": "0.9.1"' release.json
 grep -q "timerKey:'gmb-law:v1:timer'" config/app-config.js
 grep -q "./js/domain/study-logs.js" sw.js
 grep -q "./js/domain/opportunities.js" sw.js
@@ -16,8 +16,8 @@ grep -q "./js/domain/review.js" sw.js
 grep -q "./js/system-health.js" sw.js
 grep -q "./release.json" sw.js
 grep -q "updateViaCache:'none'" js/pwa.js
-grep -q "app-config.js?v=0.9.0" index.html
-grep -q "system-health.js?v=0.9.0" index.html
+grep -q "app-config.js?v=0.9.1" index.html
+grep -q "system-health.js?v=0.9.1" index.html
 grep -q "event.request.mode==='navigate'" sw.js
 grep -q "./data/activities.json" sw.js
 grep -q "./data/scholarships.json" sw.js
@@ -26,7 +26,7 @@ grep -q 'data-page="opportunities"' index.html
 grep -q 'data-page="scholarships"' index.html
 grep -q 'data-page="review"' index.html
 grep -q 'data-page="system"' index.html
-grep -q "scholarships.js?v=0.9.0" index.html
+grep -q "scholarships.js?v=0.9.1" index.html
 grep -q "name: Basketball Goal Manager Public Data AutoFetch" .github/workflows/autofetch.yml
 grep -q "release-preflight.sh" .github/workflows/pages.yml
 python -m py_compile tools/autofetch/autofetch.py tools/autofetch/scholarship_autofetch.py tools/autofetch/lifecycle_archive.py tools/autofetch/calendar_autofetch.py

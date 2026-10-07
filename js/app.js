@@ -305,8 +305,8 @@
     $$('[data-go]').forEach(b=>b.onclick=()=>nav(b.dataset.go));
     $$('[data-health-refresh]').forEach(b=>b.onclick=()=>void refreshSystemStatus());
     $$('[data-reload-app]').forEach(b=>b.onclick=()=>location.reload());
-    $$('[data-appearance]').forEach(b=>b.onclick=()=>{state.settings.appearance=b.dataset.appearance;save();applyAppearance();renderSettings();toast('外觀已更新')});
-    $$('[data-accent]').forEach(b=>b.onclick=()=>{state.settings.accent=b.dataset.accent;save();applyAppearance();renderSettings();toast('主色調已更新')});
+    $$('.segmented-control button[data-appearance]').forEach(b=>b.onclick=()=>{const next=b.dataset.appearance;if(next===(state.settings.appearance||'system'))return;state.settings.appearance=next;save();applyAppearance();renderSettings();toast('外觀已更新')});
+    $$('.accent-swatch[data-accent]').forEach(b=>b.onclick=()=>{const next=b.dataset.accent;if(next===(state.settings.accent||'orange'))return;state.settings.accent=next;save();applyAppearance();renderSettings();toast('主色調已更新')});
     $$('[data-calendar-view]').forEach(b=>b.onclick=()=>{calendarView=b.dataset.calendarView;state.settings.calendarView=calendarView;save();renderCalendar()});
     $$('[data-calendar-shift]').forEach(b=>b.onclick=()=>{calendarCursor=new Date(calendarCursor.getFullYear(),calendarCursor.getMonth()+Number(b.dataset.calendarShift),1);renderCalendar()});
     $$('[data-calendar-date]').forEach(b=>b.onclick=()=>{calendarSelectedDate=b.dataset.calendarDate;const d=new Date(calendarSelectedDate+'T00:00:00');calendarCursor=new Date(d.getFullYear(),d.getMonth(),1);renderCalendar()});

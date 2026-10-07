@@ -1,4 +1,4 @@
-# Build Status — 0.9.0
+# Build Status — 0.9.1
 
 Visual Hierarchy + Color System + Mobile Density release.
 
@@ -11,3 +11,7 @@ Visual Hierarchy + Color System + Mobile Density release.
 - System Health uses compact monitoring rows
 - Scholarship exclusion diagnostics collapse by default
 - Core data / persistence / autofetch / eligibility logic unchanged
+
+## v0.9.1 hotfix
+- Appearance/accent handlers are scoped to settings buttons only; clicks elsewhere no longer retrigger theme toasts.
+- Android/Chrome default blue tap flash on bottom navigation replaced with accent-soft press feedback.

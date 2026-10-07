@@ -1,0 +1,11 @@
+const assert=require('assert');
+const fs=require('fs');
+const app=fs.readFileSync('js/app.js','utf8');
+const css=fs.readFileSync('css/app.css','utf8');
+assert(!app.includes("$$('[data-accent]')"),'accent handler must not bind to html[data-accent]');
+assert(!app.includes("$$('[data-appearance]')"),'appearance handler must not bind to html[data-appearance]');
+assert(app.includes(".accent-swatch[data-accent]"),'accent handler scoped to setting buttons');
+assert(app.includes(".segmented-control button[data-appearance]"),'appearance handler scoped to setting buttons');
+assert(css.includes('-webkit-tap-highlight-color:transparent'),'tap highlight must be neutralized');
+assert(css.includes('.nav-btn:active'),'bottom nav needs custom press feedback');
+console.log('appearance-interaction.test.js OK');

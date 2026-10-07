@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OWNER="${GMB_GITHUB_OWNER:-aw960809-ai}"
 REPO="${GMB_GITHUB_REPO:-goal-manager-basketball-law}"
 FULL="$OWNER/$REPO"
-EXPECTED_VERSION="0.9.0"
+EXPECTED_VERSION="0.9.1"
 EXPECTED_URL="https://${OWNER}.github.io/${REPO}/"
 DEPLOY_DIR=""
 
@@ -146,7 +146,7 @@ printf 'Site: %s\n' "$PAGE_URL"
 OK=0
 for _ in $(seq 1 18); do
   if BODY="$(curl -fsSL "${PAGE_URL%/}/release.json?check=$(date +%s)" 2>/dev/null)"; then
-    if printf '%s' "$BODY" | grep -q '"version": "0.9.0"'; then
+    if printf '%s' "$BODY" | grep -q '"version": "0.9.1"'; then
       OK=1; break
     fi
   fi
