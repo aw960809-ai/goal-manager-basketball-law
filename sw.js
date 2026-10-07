@@ -1,5 +1,5 @@
 'use strict';
-const VERSION='0.8.0';
+const VERSION='0.9.0';
 const ASSET_VERSION='?v='+VERSION;
 const CACHE_PREFIX='gmb-law:pwa:';
 const CACHE=CACHE_PREFIX+VERSION;

@@ -3,19 +3,20 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#0f1217">
-  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0b0e12" id="themeColorMeta">
+  <meta name="color-scheme" content="dark light">
+  <script>(function(){try{var x=JSON.parse(localStorage.getItem('gmb-law:v1:state')||'{}'),st=x.settings||{},a=['orange','blue','green','purple'].includes(st.accent)?st.accent:'orange',m=['system','dark','light'].includes(st.appearance)?st.appearance:'system',r=m==='system'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):m;document.documentElement.dataset.theme=r;document.documentElement.dataset.appearance=m;document.documentElement.dataset.accent=a;document.documentElement.style.colorScheme=r;}catch(_){document.documentElement.dataset.theme='dark';document.documentElement.dataset.appearance='system';document.documentElement.dataset.accent='orange';}})();</script>
   <title>Basketball Goal Manager</title>
   <meta name="description" content="東海法律系使用情境的獨立 Basketball Goal Manager">
-  <link rel="manifest" href="./manifest.webmanifest?v=0.8.0">
-  <link rel="icon" href="./assets/icons/icon-192.png?v=0.8.0" sizes="192x192">
-  <link rel="apple-touch-icon" href="./assets/icons/apple-touch-icon.png?v=0.8.0">
-  <link rel="stylesheet" href="./css/tokens.css?v=0.8.0">
-  <link rel="stylesheet" href="./css/app.css?v=0.8.0">
+  <link rel="manifest" href="./manifest.webmanifest?v=0.9.0">
+  <link rel="icon" href="./assets/icons/icon-192.png?v=0.9.0" sizes="192x192">
+  <link rel="apple-touch-icon" href="./assets/icons/apple-touch-icon.png?v=0.9.0">
+  <link rel="stylesheet" href="./css/tokens.css?v=0.9.0">
+  <link rel="stylesheet" href="./css/app.css?v=0.9.0">
 </head>
 <body>
 <div class="app-shell">
-  <header class="topbar"><div class="topbar-inner"><div class="brand"><div class="brand-mark" aria-hidden="true"></div><div class="brand-copy"><b>Basketball Goal Manager</b><small>東海大學 · 法律學系</small></div></div><span class="version-chip" id="versionChip">v0.8.0</span></div></header>
+  <header class="topbar"><div class="topbar-inner"><div class="brand"><div class="brand-mark" aria-hidden="true"></div><div class="brand-copy"><b>Basketball Goal Manager</b><small>東海大學 · 法律學系</small></div></div><button class="settings-button" id="settingsButton" type="button" data-go="settings" aria-label="設定"><span aria-hidden="true">⚙</span><span class="settings-badge" id="settingsBadge" hidden></span></button></div></header>
   <main>
     <section class="page active" data-page="home" id="pageHome"></section>
     <section class="page" data-page="goals" id="pageGoals"></section>
@@ -26,6 +27,7 @@
     <section class="page" data-page="scholarships" id="pageScholarships"></section>
     <section class="page" data-page="review" id="pageReview"></section>
     <section class="page" data-page="system" id="pageSystem"></section>
+    <section class="page" data-page="settings" id="pageSettings"></section>
   </main>
   <nav class="bottom-nav" aria-label="主要導覽"><div class="bottom-nav-inner">
     <button class="nav-btn active" data-nav="home"><span class="nav-icon">⌂</span><span>首頁</span></button>
@@ -72,18 +74,18 @@
 </form></div></dialog>
 
 <div class="toast" id="toast" role="status"></div>
-<script src="./config/app-config.js?v=0.8.0"></script>
-<script src="./js/core/state.js?v=0.8.0"></script>
-<script src="./js/core/storage.js?v=0.8.0"></script>
-<script src="./js/domain/goals.js?v=0.8.0"></script>
-<script src="./js/domain/study-logs.js?v=0.8.0"></script>
-<script src="./js/services/timer.js?v=0.8.0"></script>
-<script src="./js/domain/analytics.js?v=0.8.0"></script>
-<script src="./js/domain/opportunities.js?v=0.8.0"></script>
-<script src="./js/domain/scholarships.js?v=0.8.0"></script>
-<script src="./js/domain/review.js?v=0.8.0"></script>
-<script src="./js/system-health.js?v=0.8.0"></script>
-<script src="./js/pwa.js?v=0.8.0"></script>
-<script src="./js/app.js?v=0.8.0"></script>
+<script src="./config/app-config.js?v=0.9.0"></script>
+<script src="./js/core/state.js?v=0.9.0"></script>
+<script src="./js/core/storage.js?v=0.9.0"></script>
+<script src="./js/domain/goals.js?v=0.9.0"></script>
+<script src="./js/domain/study-logs.js?v=0.9.0"></script>
+<script src="./js/services/timer.js?v=0.9.0"></script>
+<script src="./js/domain/analytics.js?v=0.9.0"></script>
+<script src="./js/domain/opportunities.js?v=0.9.0"></script>
+<script src="./js/domain/scholarships.js?v=0.9.0"></script>
+<script src="./js/domain/review.js?v=0.9.0"></script>
+<script src="./js/system-health.js?v=0.9.0"></script>
+<script src="./js/pwa.js?v=0.9.0"></script>
+<script src="./js/app.js?v=0.9.0"></script>
 </body>
 </html>

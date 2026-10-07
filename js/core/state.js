@@ -16,7 +16,7 @@
       personalEvents:[],
       reviewDecisions:{},
       timer:idleTimer(),
-      settings:{onboardingComplete:false,theme:'arena'}
+      settings:{onboardingComplete:false,appearance:'system',accent:'orange',calendarView:'month'}
     };
   }
 
@@ -117,7 +117,13 @@
       personalEvents:Array.isArray(src.personalEvents)?src.personalEvents.filter(Boolean).map(normalizeEvent):[],
       reviewDecisions:normalizeReviewDecisions(src.reviewDecisions),
       timer:normalizeTimer(src.timer),
-      settings:{...base.settings,...(src.settings||{})}
+      settings:(()=>{
+        const raw={...base.settings,...(src.settings||{})};
+        const appearance=['system','dark','light'].includes(raw.appearance)?raw.appearance:'system';
+        const accent=['orange','blue','green','purple'].includes(raw.accent)?raw.accent:'orange';
+        const calendarView=['month','agenda'].includes(raw.calendarView)?raw.calendarView:'month';
+        return {...raw,appearance,accent,calendarView};
+      })()
     };
   }
 

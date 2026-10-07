@@ -4,8 +4,8 @@
     productId:'gmb-law',
     name:'Basketball Goal Manager',
     shortName:'Court Goals',
-    version:'0.8.0',
-    schemaVersion:3,
+    version:'0.9.0',
+    schemaVersion:4,
     profile:Object.freeze({
       institution:'東海大學',
       department:'法律學系',
@@ -35,7 +35,10 @@
       goalDates:true,
       calendarAutoFetch:true,
       reviewWorkbench:true,
-      automationAlerts:true
+      automationAlerts:true,
+      settingsCenter:true,
+      appearance:true,
+      calendarMonthView:true
     })
   });
   root.GMB_CONFIG=config;

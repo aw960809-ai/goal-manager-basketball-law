@@ -15,7 +15,7 @@ from pathlib import Path
 from urllib.parse import urljoin
 from urllib.request import Request, urlopen
 
-USER_AGENT='BasketballGoalManager-CalendarAutoFetch/0.8.0'
+USER_AGENT='BasketballGoalManager-CalendarAutoFetch/0.9.0'
 LIST_URL='https://registcourse.thu.edu.tw/web/news/list.php?page={page}'
 BASE='https://registcourse.thu.edu.tw/'
 CAL_TITLE_RX=re.compile(r'(?:本校)?(?P<year>\d{3})\s*學年度行事曆')

@@ -1,7 +1,7 @@
 (function(){
   'use strict';
   const C=window.GMB_CONFIG,Store=window.GMBStorage,Goals=window.GMBGoals,Logs=window.GMBStudyLogs,Timer=window.GMBTimer,A=window.GMBAnalytics,Opp=window.GMBOpportunities,Sch=window.GMBScholarships,Review=window.GMBReview,Health=window.GMBSystemHealth;
-  let state=Store.load(),page='home',schoolCalendar=[],schoolCalendarMeta={},activityPayload={meta:{},events:[]},scholarshipPayload={meta:{},scholarships:[]},activityFilters={q:'',circle:'all',category:'all',tier:'all'},scholarshipFilters={q:'',kind:'all',tier:'all'},tickHandle=null,publicLoadStatus={calendar:{ok:null,error:''},calendarMeta:{ok:null,error:''},activity:{ok:null,error:''},scholarship:{ok:null,error:''}},systemPwaStatus=null;
+  let state=Store.load(),page='home',schoolCalendar=[],schoolCalendarMeta={},activityPayload={meta:{},events:[]},scholarshipPayload={meta:{},scholarships:[]},activityFilters={q:'',circle:'all',category:'all',tier:'all'},scholarshipFilters={q:'',kind:'all',tier:'all'},tickHandle=null,publicLoadStatus={calendar:{ok:null,error:''},calendarMeta:{ok:null,error:''},activity:{ok:null,error:''},scholarship:{ok:null,error:''}},systemPwaStatus=null,calendarView=state.settings?.calendarView||'month',calendarSelectedDate=A.dayKey(new Date()),calendarCursor=new Date();
   const $=s=>document.querySelector(s),$$=s=>Array.from(document.querySelectorAll(s));
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const fmtDate=d=>{try{return new Intl.DateTimeFormat('zh-TW',{month:'numeric',day:'numeric',weekday:'short'}).format(new Date(d+'T00:00:00'))}catch(_){return d}};
@@ -9,7 +9,15 @@
   const save=()=>{state=Store.save(state);return state};
   function toast(msg){const el=$('#toast');if(!el)return;el.textContent=msg;el.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>el.classList.remove('show'),1800)}
   function downloadJson(filename,obj){const blob=new Blob([JSON.stringify(obj,null,2)+'\n'],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),500)}
-  function nav(next){page=next;$$('.page').forEach(el=>el.classList.toggle('active',el.dataset.page===next));$$('.nav-btn').forEach(el=>el.classList.toggle('active',el.dataset.nav===next||(['opportunities','scholarships','review','system'].includes(next)&&el.dataset.nav==='home')));renderCurrent();window.scrollTo({top:0,behavior:'smooth'})}
+  const APPEARANCE_LABELS={system:'跟隨系統',dark:'深色',light:'淺色'};
+  const ACCENT_LABELS={orange:'籃球橘',blue:'球場藍',green:'戰術綠',purple:'冠軍紫'};
+  function resolvedTheme(){const mode=state.settings?.appearance||'system';if(mode==='light'||mode==='dark')return mode;return window.matchMedia?.('(prefers-color-scheme: light)').matches?'light':'dark'}
+  function applyAppearance(){
+    const mode=['system','dark','light'].includes(state.settings?.appearance)?state.settings.appearance:'system',accent=['orange','blue','green','purple'].includes(state.settings?.accent)?state.settings.accent:'orange',resolved=resolvedTheme(),html=document.documentElement;
+    html.dataset.appearance=mode;html.dataset.theme=resolved;html.dataset.accent=accent;html.style.colorScheme=resolved;
+    const meta=$('#themeColorMeta');if(meta)meta.setAttribute('content',resolved==='light'?'#f5f4f0':'#0b0e12');
+  }
+  function nav(next){page=next;$$('.page').forEach(el=>el.classList.toggle('active',el.dataset.page===next));$$('.nav-btn').forEach(el=>el.classList.toggle('active',el.dataset.nav===next||(['opportunities','scholarships'].includes(next)&&el.dataset.nav==='home')));renderCurrent();window.scrollTo({top:0,behavior:'smooth'})}
   const todayMinutes=()=>A.minutes(A.todayLogs(state));
   const weekMinutes=()=>A.minutes(A.weekLogs(state));
   const weekSessions=()=>A.weekLogs(state).length;
@@ -34,20 +42,20 @@
     return Health.versionSummary(raw);
   }
   function healthToneClass(tone){return tone==='good'?'health-good':tone==='bad'?'health-bad':tone==='warn'?'health-warn':'health-neutral'}
-  function homeSystemHealth(){
-    const data=publicHealth(),pwa=pwaHealth();
-    return `<button class="compact-status-row" data-go="system"><span class="compact-status-icon info">●</span><span class="compact-status-copy"><b>System Health</b><small>Activity ${esc(data.activity.label)} · Scholarship ${esc(data.scholarship.label)} · ${esc(pwa.label)}</small></span><span class="compact-status-value ${healthToneClass(data.summary.tone)}">${esc(data.summary.label)}</span><span class="compact-status-arrow">›</span></button>`;
-  }
-
   function reviewSummary(){
     const a=opportunityCatalog(),s=scholarshipCatalog(),d=Review.stats(state.reviewDecisions||{});
     return {pendingActivity:a.review.length,pendingScholarship:s.review.length,pending:a.review.length+s.review.length,decisions:d};
   }
-  function homeReviewCenter(){
-    const r=reviewSummary();
-    return `<button class="compact-status-row review-home-row" data-go="review"><span class="compact-status-icon warn">●</span><span class="compact-status-copy"><b>Review Center</b><small>活動 ${r.pendingActivity} · 獎學金 ${r.pendingScholarship} · 已核准 ${r.decisions.approve} · 已排除 ${r.decisions.exclude}</small></span><span class="compact-status-value health-warn">${r.pending} 待處理</span><span class="compact-status-arrow">›</span></button>`;
+  function homeMaintenanceAlert(){
+    const data=publicHealth(),pwa=pwaHealth();
+    if(data.summary.tone==='bad'||pwa.tone==='bad'||pwa.status==='update')return `<button class="compact-status-row maintenance-alert" data-go="settings"><span class="compact-status-icon warn">!</span><span class="compact-status-copy"><b>系統需要注意</b><small>${esc(data.summary.label)} · ${esc(pwa.label)}</small></span><span class="compact-status-arrow">›</span></button>`;
+    return '';
   }
-
+  function updateSettingsBadge(){
+    const badge=$('#settingsBadge');if(!badge)return;const review=reviewSummary(),health=publicHealth(),pwa=pwaHealth(),bad=health.summary.tone==='bad'||pwa.tone==='bad'||pwa.status==='update';
+    if(bad){badge.hidden=false;badge.textContent='!';badge.classList.add('urgent');return}
+    badge.classList.remove('urgent');if(review.pending>0){badge.hidden=false;badge.textContent=review.pending>99?'99+':String(review.pending)}else{badge.hidden=true;badge.textContent=''}
+  }
   function timeline(limit=6){
     const today=A.dayKey(new Date());
     const school=schoolCalendar.filter(e=>e.date>=today).map(e=>({...e,kind:'school',badge:'東海校曆'}));
@@ -64,12 +72,12 @@
     const home=$('#pageHome'),roots=Goals.roots(state),next=Goals.nextAction(state);
     if(!state.goals.length){
       home.innerHTML=`<section class="hero"><p class="eyebrow">WELCOME TO YOUR SEASON</p><h1>新的球季，從第一個目標開始。</h1><p>個人資料從空白開始；東海官方校曆與公開資料則維持獨立提供。</p><div class="hero-actions"><button class="btn primary" data-open="goalWizard">建立第一個目標</button><button class="btn" data-go="execute">開始自由計時</button></div></section>
-      <div class="section-head"><h2>START HERE</h2><small>先完成一條可用的學習閉環</small></div><div class="quick-row"><button class="quick" data-open="goalWizard"><span class="ico">◎</span><b>建立目標</b><small>方向 → 階段目標 → 具體行動</small></button><button class="quick" data-go="execute"><span class="ico">◷</span><b>開始訓練</b><small>目標計時或自由計時</small></button><button class="quick" data-go="opportunities"><span class="ico">⌖</span><b>探索機會</b><small>法律系導向 Activity Radar</small></button></div><div class="section-head"><h2>OPPORTUNITY SCOUTING</h2><small>公開活動資料</small></div>${homeOpportunityCards()}${homeReviewCenter()}${homeSystemHealth()}`;
+      <div class="section-head"><h2>START HERE</h2><small>先完成一條可用的學習閉環</small></div><div class="quick-row"><button class="quick" data-open="goalWizard"><span class="ico">◎</span><b>建立目標</b><small>方向 → 階段目標 → 具體行動</small></button><button class="quick" data-go="execute"><span class="ico">◷</span><b>開始訓練</b><small>目標計時或自由計時</small></button><button class="quick" data-go="opportunities"><span class="ico">⌖</span><b>探索機會</b><small>法律系導向 Activity Radar</small></button></div><div class="section-head"><h2>OPPORTUNITY SCOUTING</h2><small>公開活動資料</small></div>${homeOpportunityCards()}${homeMaintenanceAlert()}`;
     }else{
       home.innerHTML=`<section class="hero"><p class="eyebrow">TODAY'S GAME PLAN</p><h1>${todayMinutes()} MIN <span class="muted" style="font-size:.48em;font-weight:650">今日投入</span></h1><p>${next?`下一個具體行動：<b>${esc(next.name)}</b>${next.targetDate?` · ${esc(fmtDate(next.targetDate))}`:''}`:'目前具體行動都已完成，可以建立下一個訓練項目。'}</p><div class="hero-actions"><button class="btn primary" data-go="execute">開始訓練</button><button class="btn" data-open="backfillDialog">補登時間</button></div></section>
       <div class="section-head"><h2>WEEKLY STATS</h2><small>Study Log 即時計算</small></div><div class="stat-strip"><div class="stat-cell"><small>本週投入</small><strong>${weekMinutes()}</strong><span>分鐘</span></div><div class="stat-cell"><small>Sessions</small><strong>${weekSessions()}</strong><span>次</span></div><div class="stat-cell"><small>連續投入</small><strong>${A.streakDays(state)}</strong><span>天</span></div></div>
       <div class="section-head"><h2>UP NEXT</h2><small>校曆＋個人行事＋目標日期</small></div><article class="card">${renderEventRows(timeline(5))}</article>
-      <div class="section-head"><h2>OPPORTUNITY SCOUTING</h2><small>法律系導向</small></div>${homeOpportunityCards()}${homeReviewCenter()}${homeSystemHealth()}<div class="section-head"><h2>SEASON GOALS</h2><small>主要方向</small></div><div class="grid two">${roots.slice(0,4).map(r=>`<article class="card game-card"><h3>${esc(r.name)}</h3><div class="goal-meta">${Goals.progress(state,r.id)}% 完成</div><div class="progress"><span style="width:${Goals.progress(state,r.id)}%"></span></div></article>`).join('')}</div>`;
+      <div class="section-head"><h2>OPPORTUNITY SCOUTING</h2><small>法律系導向</small></div>${homeOpportunityCards()}${homeMaintenanceAlert()}<div class="section-head"><h2>SEASON GOALS</h2><small>主要方向</small></div><div class="grid two">${roots.slice(0,4).map(r=>`<article class="card game-card"><h3>${esc(r.name)}</h3><div class="goal-meta">${Goals.progress(state,r.id)}% 完成</div><div class="progress"><span style="width:${Goals.progress(state,r.id)}%"></span></div></article>`).join('')}</div>`;
     }
     wireDynamic();
   }
@@ -190,9 +198,34 @@
     wireDynamic();updateTick();
   }
 
+  function calendarAllEvents(){
+    const school=schoolCalendar.map(e=>({...e,kind:'school',badge:'東海校曆'}));
+    const personal=(state.personalEvents||[]).map(e=>({...e,kind:'personal',badge:'個人'}));
+    const goals=Goals.datedGoals(state).map(g=>({id:'goal-'+g.id,date:g.targetDate,title:g.name,meta:Goals.pathText(state,g.id),kind:'goal',badge:g.level===3?'具體行動':'目標日期'}));
+    return [...school,...personal,...goals].filter(e=>e.date).sort((a,b)=>a.date.localeCompare(b.date)||String(a.title).localeCompare(String(b.title),'zh-Hant'));
+  }
+  function cursorMonthStart(){return new Date(calendarCursor.getFullYear(),calendarCursor.getMonth(),1)}
+  function dateKeyFromDate(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+  function monthTitle(d){return new Intl.DateTimeFormat('zh-TW',{year:'numeric',month:'long'}).format(d)}
+  function calendarEventsFor(date,events=calendarAllEvents()){return events.filter(e=>e.date===date)}
+  function calendarDayCell(d,month,events,today){
+    const key=dateKeyFromDate(d),dayEvents=calendarEventsFor(key,events),types=[...new Set(dayEvents.map(e=>e.kind))],inMonth=d.getMonth()===month,selected=key===calendarSelectedDate,isToday=key===today;
+    return `<button class="calendar-day ${inMonth?'':'outside'} ${selected?'selected':''} ${isToday?'today':''}" data-calendar-date="${key}" aria-label="${key}${dayEvents.length?`，${dayEvents.length} 個事件`:''}"><span class="calendar-day-num">${d.getDate()}</span><span class="calendar-dots">${types.slice(0,3).map(t=>`<i class="dot-${t}"></i>`).join('')}</span></button>`;
+  }
+  function calendarMonthHtml(events){
+    const start=cursorMonthStart(),year=start.getFullYear(),month=start.getMonth(),firstDay=start.getDay(),gridStart=new Date(year,month,1-firstDay),today=A.dayKey(new Date()),cells=[];
+    for(let i=0;i<42;i++){const d=new Date(gridStart);d.setDate(gridStart.getDate()+i);cells.push(calendarDayCell(d,month,events,today))}
+    return `<div class="calendar-month"><div class="calendar-weekdays">${['日','一','二','三','四','五','六'].map(x=>`<span>${x}</span>`).join('')}</div><div class="calendar-grid">${cells.join('')}</div></div>`;
+  }
+
   function renderCalendar(){
-    const today=A.dayKey(new Date()),school=schoolCalendar.filter(e=>e.date>=today).map(e=>({...e,kind:'school',badge:'東海校曆'})),personal=(state.personalEvents||[]).filter(e=>e.date>=today).map(e=>({...e,kind:'personal',badge:'個人'})),goalDates=Goals.datedGoals(state,today).map(g=>({id:'goal-'+g.id,date:g.targetDate,title:g.name,meta:Goals.pathText(state,g.id),kind:'goal',badge:g.level===3?'具體行動':'目標日期'})),all=[...school,...personal,...goalDates].sort((a,b)=>a.date.localeCompare(b.date));
-    $('#pageCalendar').innerHTML=`<div class="section-head"><div><p class="eyebrow">SCHEDULE</p><h2>行事曆</h2></div><button class="btn primary" data-open="personalEventDialog">＋ 個人行事</button></div><div class="stat-strip"><div class="stat-cell tone-info"><small>東海校曆</small><strong>${schoolCalendar.length}</strong><span>公開事件</span></div><div class="stat-cell"><small>個人行事</small><strong>${state.personalEvents.length}</strong><span>獨立資料</span></div><div class="stat-cell tone-brand"><small>目標日期</small><strong>${Goals.datedGoals(state).length}</strong><span>Goal</span></div></div><div class="phase-note">校曆與目標日期只用於 Schedule；分析頁只統計 Study Log，不會把校曆事件算成讀書時間。</div><div class="section-head"><h2>UPCOMING</h2><small>接下來的行程</small></div><article class="card calendar-strip">${renderEventRows(all.slice(0,24))}</article>`;wireDynamic();
+    const events=calendarAllEvents(),today=A.dayKey(new Date()),selectedEvents=calendarEventsFor(calendarSelectedDate,events),upcoming=events.filter(e=>e.date>=today).slice(0,40);
+    calendarView=['month','agenda'].includes(state.settings?.calendarView)?state.settings.calendarView:calendarView;
+    const month=cursorMonthStart();
+    $('#pageCalendar').innerHTML=`<div class="section-head calendar-page-head"><div><p class="eyebrow">SCHEDULE</p><h2>行事曆</h2></div><button class="btn primary" data-add-event-date="${esc(calendarSelectedDate)}">＋ 個人行事</button></div>
+    <div class="calendar-toolbar"><div class="view-toggle"><button class="${calendarView==='month'?'active':''}" data-calendar-view="month">月曆</button><button class="${calendarView==='agenda'?'active':''}" data-calendar-view="agenda">行程</button></div><button class="btn ghost calendar-today" data-calendar-today>今天</button></div>
+    ${calendarView==='month'?`<section class="card calendar-board"><div class="calendar-month-nav"><button class="calendar-nav-btn" data-calendar-shift="-1" aria-label="上個月">‹</button><h3>${esc(monthTitle(month))}</h3><button class="calendar-nav-btn" data-calendar-shift="1" aria-label="下個月">›</button></div>${calendarMonthHtml(events)}<div class="calendar-legend"><span><i class="dot-school"></i>東海校曆</span><span><i class="dot-personal"></i>個人</span><span><i class="dot-goal"></i>目標</span></div></section><div class="section-head day-detail-head"><div><h2>${esc(fmtDate(calendarSelectedDate))}</h2><small>${selectedEvents.length} 個事件</small></div><button class="btn" data-add-event-date="${esc(calendarSelectedDate)}">＋ 加入這一天</button></div><article class="card day-detail">${renderEventRows(selectedEvents)}</article>`:`<div class="calendar-agenda-summary"><span>接下來 ${upcoming.length} 筆</span><small>東海校曆、個人行事與目標日期</small></div><article class="card calendar-strip agenda-list">${renderEventRows(upcoming)}</article>`}`;
+    wireDynamic();
   }
 
   function renderAnalytics(){
@@ -218,7 +251,7 @@
     const root=$('#pageReview'),autoA=opportunityAutoCatalog(),autoS=scholarshipAutoCatalog(),decisions=Review.normalize(state.reviewDecisions||{}),stats=Review.stats(decisions);
     const aRows=autoA.review||[],sRows=autoS.review||[],unresolved=[...aRows.map(x=>['activity',x]),...sRows.map(x=>['scholarship',x])].filter(([kind,row])=>{const d=Review.get(decisions,kind,row.id);return !d||d.action==='pending'}).length;
     const history=Object.values(decisions).sort((a,b)=>String(b.updatedAt).localeCompare(String(a.updatedAt)));
-    root.innerHTML=`<div class="section-head scouting-head"><div><button class="back-link" data-go="home">← 首頁</button><p class="eyebrow">REVIEW CENTER</p><h2>人工審查工作台</h2></div><span class="version-chip">${unresolved} 待處理</span></div>
+    root.innerHTML=`<div class="section-head scouting-head"><div><button class="back-link" data-go="settings">← 設定</button><p class="eyebrow">REVIEW CENTER</p><h2>人工審查工作台</h2></div><span class="version-chip">${unresolved} 待處理</span></div>
     <p class="muted">只允許人工處理「自動待複核」項目。獎學金已被硬性資格規則排除的項目不會出現在這裡，也不能靠人工核准繞過縣市、清寒、科系等硬性規則。</p>
     <div class="stat-strip review-kpis"><div class="stat-cell tone-warning"><small>自動待複核</small><strong>${aRows.length+sRows.length}</strong><span>活動 ${aRows.length} · 獎學金 ${sRows.length}</span></div><div class="stat-cell tone-warning"><small>仍待處理</small><strong>${unresolved}</strong><span>未決定</span></div><div class="stat-cell tone-success"><small>人工決策</small><strong>${stats.approve+stats.exclude}</strong><span>已處理</span></div></div>
     <article class="card review-policy"><div><b>決策保存方式</b><p class="muted">人工決策保存在這個 Basketball Goal Manager 的獨立個人資料中；AutoFetch 更新 catalog 後，只要同一 ID 仍存在就會自動套用。可匯出／匯入 JSON 備份。</p></div><div class="hero-actions"><button class="btn" data-review-export>匯出審查決策</button><button class="btn" data-review-import>匯入審查決策</button><input id="reviewImportInput" type="file" accept="application/json,.json" hidden></div></article>
@@ -234,10 +267,21 @@
     const count=item.count===null||item.count===undefined?'—':item.count;
     return `<div class="health-status-row"><div class="health-status-main"><p class="eyebrow">${esc(title)}</p><b>${count} 筆</b><small>${esc(item.sourceText||item.detail||'')}${age}</small></div><div class="health-status-side"><span class="health-pill ${healthToneClass(item.tone)}">${esc(item.label)}</span>${extra?`<div class="health-status-extra">${extra}</div>`:''}</div></div>`;
   }
+  function renderSettings(){
+    const root=$('#pageSettings'),review=reviewSummary(),health=publicHealth(),pwa=pwaHealth(),appearance=state.settings?.appearance||'system',accent=state.settings?.accent||'orange';
+    root.innerHTML=`<div class="section-head settings-head"><div><p class="eyebrow">SETTINGS</p><h2>設定</h2></div><span class="settings-version">v${esc(C.version)}</span></div>
+    <section class="settings-section"><div class="settings-section-title"><b>外觀</b><small>背景與主色調只影響介面，不影響資料。</small></div><div class="setting-block"><span>外觀模式</span><div class="segmented-control">${Object.entries(APPEARANCE_LABELS).map(([k,v])=>`<button class="${appearance===k?'active':''}" data-appearance="${k}">${esc(v)}</button>`).join('')}</div></div><div class="setting-block accent-setting"><span>主色調</span><div class="accent-swatches">${Object.entries(ACCENT_LABELS).map(([k,v])=>`<button class="accent-swatch swatch-${k} ${accent===k?'active':''}" data-accent="${k}" aria-label="${esc(v)}"><i></i><span>${esc(v)}</span></button>`).join('')}</div></div></section>
+    <section class="settings-section"><div class="settings-section-title"><b>資料與更新</b><small>低頻維護功能集中在這裡。</small></div><button class="setting-row" data-go="system"><span><b>系統健康</b><small>Activity／Scholarship／校曆／PWA</small></span><span class="setting-row-value ${healthToneClass(health.summary.tone)}">${esc(health.summary.label)}</span><i>›</i></button><button class="setting-row" data-health-refresh><span><b>立即重新檢查</b><small>重新檢查公開資料與版本</small></span><span class="setting-row-value">${esc(pwa.label)}</span><i>↻</i></button></section>
+    <section class="settings-section"><div class="settings-section-title"><b>審查與治理</b><small>只有自動待複核項目可人工處理。</small></div><button class="setting-row" data-go="review"><span><b>Review Center</b><small>活動 ${review.pendingActivity} · 獎學金 ${review.pendingScholarship}</small></span><span class="setting-row-value ${review.pending?'health-warn':'health-good'}">${review.pending} 待處理</span><i>›</i></button></section>
+    <section class="settings-section"><div class="settings-section-title"><b>資料管理</b><small>備份這個新網站自己的個人資料。</small></div><button class="setting-row" data-state-export><span><b>匯出個人資料備份</b><small>目標、Study Log、行事、設定與審查決策</small></span><i>↓</i></button><button class="setting-row" data-state-import><span><b>匯入個人資料備份</b><small>匯入前會通過資料驗證</small></span><i>↑</i></button><input id="stateImportInput" type="file" accept="application/json,.json" hidden></section>
+    <section class="settings-section"><div class="settings-section-title"><b>應用程式</b></div><div class="setting-info-row"><span>版本</span><b>v${esc(C.version)}</b></div><div class="setting-info-row"><span>外觀</span><b>${esc(APPEARANCE_LABELS[appearance])} · ${esc(ACCENT_LABELS[accent])}</b></div><div class="setting-info-row"><span>資料空間</span><b>Basketball Goal Manager 專用</b></div></section>`;
+    wireDynamic();
+  }
+
   function renderSystem(){
     const root=$('#pageSystem'),data=publicHealth(),pwa=pwaHealth(),raw=systemPwaStatus||{};
     const release=raw.release||{};
-    root.innerHTML=`<div class="section-head scouting-head"><div><button class="back-link" data-go="home">← 首頁</button><p class="eyebrow">SYSTEM HEALTH</p><h2>資料與版本狀態</h2></div><span class="version-chip">v${esc(C.version)}</span></div>
+    root.innerHTML=`<div class="section-head scouting-head"><div><button class="back-link" data-go="settings">← 設定</button><p class="eyebrow">SYSTEM HEALTH</p><h2>資料與版本狀態</h2></div><span class="version-chip">v${esc(C.version)}</span></div>
     <section class="health-banner ${healthToneClass(data.summary.tone)}"><div><b>${esc(data.summary.label)}</b><p>資料讀取失敗會直接顯示錯誤，不再以 0/0 偽裝成來源統計。</p></div><button class="btn" data-health-refresh>重新檢查</button></section>
     <article class="card health-status-list">${healthCard('ACTIVITY DATA',data.activity,data.activity.review!==undefined?`<span>待複核 ${data.activity.review}</span>`:'')}${healthCard('SCHOLARSHIP DATA',data.scholarship,`<span>已驗證 ${data.scholarship.verified??'—'}</span><span>待驗證 ${data.scholarship.unverified??'—'}</span>`)}${healthCard('THU CALENDAR',data.calendar,data.calendar.sourceAnnouncementUrl?`<a href="${esc(data.calendar.sourceAnnouncementUrl)}" target="_blank" rel="noopener noreferrer">官方公告</a>`:'')}</article>
     <div class="section-head"><h2>PWA / RELEASE</h2><small>page · worker · published release</small></div><article class="card release-card"><div class="health-card-head"><div><p class="eyebrow">VERSION COHERENCE</p><h3>${esc(pwa.label)}</h3></div><span class="health-pill ${healthToneClass(pwa.tone)}">${esc(pwa.status.toUpperCase())}</span></div><div class="release-rows"><div><span>頁面</span><b>${esc(pwa.pageVersion||C.version)}</b></div><div><span>Service Worker</span><b>${esc(pwa.workerVersion||'尚未回報')}</b></div><div><span>發布版本</span><b>${esc(pwa.releaseVersion||'尚未讀取')}</b></div><div><span>網路</span><b>${pwa.status==='offline'?'離線':'在線'}</b></div></div>${raw.waiting?'<p class="health-note">已有新版 Service Worker 等待啟用；完成中的 Timer 不會被自動中斷。</p>':''}<div class="hero-actions"><button class="btn primary" data-health-refresh>檢查更新</button><button class="btn" data-reload-app>重新載入</button></div></article>
@@ -249,20 +293,33 @@
     try{systemPwaStatus=await window.GMBPWA?.check();if(page==='system')renderSystem();else renderCurrent();toast('狀態已重新檢查')}catch(err){toast('版本檢查失敗：'+String(err?.message||err))}
   }
 
-  function renderCurrent(){if(page==='home')renderHome();else if(page==='goals')renderGoals();else if(page==='execute')renderExecute();else if(page==='calendar')renderCalendar();else if(page==='analytics')renderAnalytics();else if(page==='opportunities')renderOpportunities();else if(page==='scholarships')renderScholarships();else if(page==='review')renderReview();else if(page==='system')renderSystem()}
+  function renderCurrent(){if(page==='home')renderHome();else if(page==='goals')renderGoals();else if(page==='execute')renderExecute();else if(page==='calendar')renderCalendar();else if(page==='analytics')renderAnalytics();else if(page==='opportunities')renderOpportunities();else if(page==='scholarships')renderScholarships();else if(page==='review')renderReview();else if(page==='system')renderSystem();else if(page==='settings')renderSettings();updateSettingsBadge()}
+
   function openAddGoal(level,parentId){const labels={1:['新增方向','方向名稱'],2:['新增階段目標','階段目標名稱'],3:['新增具體行動','具體行動名稱']};$('#goalAddLevel').value=String(level);$('#goalAddParent').value=parentId||'';$('#goalAddTitle').textContent=labels[level][0];$('#goalAddLabel').textContent=labels[level][1];$('#goalAddName').value='';$('#goalAddDate').value='';$('#goalAddDialog').showModal();setTimeout(()=>$('#goalAddName').focus(),40)}
   function openEditGoal(id){const g=Goals.byId(state,id);if(!g)return;$('#goalEditId').value=g.id;$('#goalEditName').value=g.name;$('#goalEditDate').value=g.targetDate||'';$('#goalEditDialog').showModal()}
   function openBackfill(){const sel=$('#backfillTarget');sel.innerHTML='<option value="free">其他讀書時間</option>'+Goals.actions(state).map(a=>`<option value="${esc(a.id)}">${esc(Goals.pathText(state,a.id))}</option>`).join('');$('#backfillDate').value=A.dayKey(new Date());$('#backfillMinutes').value='';$('#backfillLabel').value='';$('#backfillDialog').showModal()}
+
+  function openPersonalEvent(date=calendarSelectedDate){$('#personalEventDate').value=date||A.dayKey(new Date());$('#personalEventTitle').value='';$('#personalEventDialog').showModal();setTimeout(()=>$('#personalEventTitle').focus(),40)}
 
   function wireDynamic(){
     $$('[data-go]').forEach(b=>b.onclick=()=>nav(b.dataset.go));
     $$('[data-health-refresh]').forEach(b=>b.onclick=()=>void refreshSystemStatus());
     $$('[data-reload-app]').forEach(b=>b.onclick=()=>location.reload());
+    $$('[data-appearance]').forEach(b=>b.onclick=()=>{state.settings.appearance=b.dataset.appearance;save();applyAppearance();renderSettings();toast('外觀已更新')});
+    $$('[data-accent]').forEach(b=>b.onclick=()=>{state.settings.accent=b.dataset.accent;save();applyAppearance();renderSettings();toast('主色調已更新')});
+    $$('[data-calendar-view]').forEach(b=>b.onclick=()=>{calendarView=b.dataset.calendarView;state.settings.calendarView=calendarView;save();renderCalendar()});
+    $$('[data-calendar-shift]').forEach(b=>b.onclick=()=>{calendarCursor=new Date(calendarCursor.getFullYear(),calendarCursor.getMonth()+Number(b.dataset.calendarShift),1);renderCalendar()});
+    $$('[data-calendar-date]').forEach(b=>b.onclick=()=>{calendarSelectedDate=b.dataset.calendarDate;const d=new Date(calendarSelectedDate+'T00:00:00');calendarCursor=new Date(d.getFullYear(),d.getMonth(),1);renderCalendar()});
+    $$('[data-calendar-today]').forEach(b=>b.onclick=()=>{calendarSelectedDate=A.dayKey(new Date());const d=new Date();calendarCursor=new Date(d.getFullYear(),d.getMonth(),1);renderCalendar()});
+    $$('[data-add-event-date]').forEach(b=>b.onclick=()=>openPersonalEvent(b.dataset.addEventDate||calendarSelectedDate));
+    $$('[data-state-export]').forEach(b=>b.onclick=()=>downloadJson(`gmb-law-backup-${A.dayKey(new Date())}.json`,{schemaVersion:C.schemaVersion,productId:C.productId,exportedAt:new Date().toISOString(),state}));
+    $$('[data-state-import]').forEach(b=>b.onclick=()=>$('#stateImportInput')?.click());
+    $('#stateImportInput')?.addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{const payload=JSON.parse(await file.text()),candidate=window.GMBState.normalize(payload.state||payload),errors=window.GMBState.validate(candidate);if(errors.length)throw new Error(errors.join(','));state=Store.save(candidate);calendarView=state.settings.calendarView||'month';applyAppearance();renderSettings();toast('個人資料已匯入')}catch(err){toast('匯入失敗：'+String(err?.message||err))}});
     $$('[data-review-action]').forEach(b=>b.onclick=()=>{try{const action=b.dataset.reviewAction,kind=b.dataset.reviewKind,id=b.dataset.reviewId,title=b.dataset.reviewTitle||'';state.reviewDecisions=Review.set(state.reviewDecisions||{},{kind,id,action,title});save();renderReview();toast(action==='approve'?'已人工核准':action==='exclude'?'已人工排除':action==='reset'?'已恢復自動判定':'已保留待複核')}catch(err){toast(String(err?.message||err))}});
     $('[data-review-export]')?.addEventListener('click',()=>downloadJson(`gmb-review-decisions-${A.dayKey(new Date())}.json`,Review.exportPayload(state.reviewDecisions||{})));
     $('[data-review-import]')?.addEventListener('click',()=>$('#reviewImportInput')?.click());
     $('#reviewImportInput')?.addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{const payload=JSON.parse(await file.text());state.reviewDecisions=Review.importPayload(payload);save();renderReview();toast('審查決策已匯入')}catch(err){toast('匯入失敗：'+String(err?.message||err))}});
-    $$('[data-open]').forEach(b=>b.onclick=()=>b.dataset.open==='backfillDialog'?openBackfill():$('#'+b.dataset.open)?.showModal());
+    $$('[data-open]').forEach(b=>b.onclick=()=>b.dataset.open==='backfillDialog'?openBackfill():b.dataset.open==='personalEventDialog'?openPersonalEvent():$('#'+b.dataset.open)?.showModal());
     $$('[data-add-level]').forEach(b=>b.onclick=()=>openAddGoal(Number(b.dataset.addLevel),b.dataset.parent||null));
     $$('[data-edit-goal]').forEach(b=>b.onclick=()=>openEditGoal(b.dataset.editGoal));
     $$('[data-toggle-action]').forEach(b=>b.onclick=()=>{const g=Goals.byId(state,b.dataset.toggleAction);const done=g.status!=='done';state=Goals.setCompleted(state,g.id,done);save();renderCurrent();toast(done?'具體行動已完成':'已重新開啟')});
@@ -294,10 +351,11 @@
     renderCurrent();
   }
   async function init(){
-    $('#versionChip').textContent='v'+C.version;bindStatic();
-    const recovery=await Store.recoverIfNeeded();state=Store.load();renderCurrent();await loadPublicData();
+    bindStatic();applyAppearance();
+    const recovery=await Store.recoverIfNeeded();state=Store.load();calendarView=state.settings?.calendarView||'month';applyAppearance();renderCurrent();await loadPublicData();
     await window.GMBPWA?.register();
-    try{systemPwaStatus=await window.GMBPWA?.check();if(page==='system'||page==='home')renderCurrent()}catch(_){}
+    try{systemPwaStatus=await window.GMBPWA?.check();if(['system','home','settings'].includes(page))renderCurrent()}catch(_){}
+    const mq=window.matchMedia?.('(prefers-color-scheme: light)');mq?.addEventListener?.('change',()=>{if((state.settings?.appearance||'system')==='system'){applyAppearance();renderCurrent()}});updateSettingsBadge();
     if(recovery.recovered)toast(`資料已由 ${recovery.source==='indexeddb'?'IndexedDB':'備份'} 恢復`);
     console.info('[Basketball Goal Manager]',{version:C.version,namespace:Store.namespaceReport(),profile:state.profile,recovery,publicLoadStatus,systemPwaStatus});
   }
