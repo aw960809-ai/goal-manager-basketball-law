@@ -79,3 +79,23 @@ dialog{border:1px solid var(--line);background:var(--surface);color:var(--text);
 /* v0.6.1 Data Health & Release Readiness */
 .system-home-card{margin-top:14px;display:flex;align-items:center;justify-content:space-between;gap:14px;border-color:rgba(106,168,255,.18)}.system-home-card h3{margin:3px 0 6px}.health-banner{margin-top:12px;border:1px solid var(--line);border-radius:16px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:14px;background:var(--surface)}.health-banner b{font-size:15px}.health-banner p{margin:4px 0 0;color:var(--muted);font-size:11px;line-height:1.55}.health-grid{margin-top:14px}.health-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.health-card h3,.release-card h3{margin:4px 0 0}.health-pill{display:inline-flex;align-items:center;white-space:nowrap;border-radius:999px;padding:6px 9px;border:1px solid var(--line);font-size:10px;font-weight:850}.health-good{border-color:rgba(75,201,126,.35)!important;background:rgba(75,201,126,.07)!important;color:#baf0ca!important}.health-warn{border-color:rgba(241,176,72,.36)!important;background:rgba(241,176,72,.07)!important;color:#f5d19b!important}.health-bad{border-color:rgba(247,99,99,.38)!important;background:rgba(247,99,99,.07)!important;color:#ffc0c0!important}.health-neutral{border-color:rgba(169,176,187,.25)!important;background:rgba(169,176,187,.05)!important;color:#d4d8df!important}.release-card{background:linear-gradient(180deg,#171c23,#11161c)}.release-rows{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:14px 0}.release-rows>div{display:flex;justify-content:space-between;gap:12px;border:1px solid rgba(255,255,255,.06);background:#0f141a;border-radius:10px;padding:9px 10px;font-size:11px}.release-rows span{color:var(--muted)}.release-rows b{color:#e8edf3}.health-note{font-size:11px;color:#f2c58f;line-height:1.55}.system-home-card .btn{flex:0 0 auto}
 @media(max-width:700px){.system-home-card,.health-banner{align-items:flex-start;flex-direction:column}.system-home-card .btn,.health-banner .btn{width:100%}.health-grid{grid-template-columns:1fr!important}.release-rows{grid-template-columns:1fr}}
+
+/* v0.7.0 Review Center */
+.review-home-card{border-color:rgba(241,122,34,.2)}
+.review-kpis{margin-top:14px}
+.review-policy{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-top:14px}
+.review-policy p{margin:6px 0 0;line-height:1.6}
+.review-work-list{display:grid;gap:12px}
+.review-work-item{padding:16px}
+.review-work-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
+.review-work-head h3{font-size:17px;line-height:1.45;margin:9px 0 4px}
+.review-state{display:inline-flex;flex:0 0 auto;border:1px solid var(--line);border-radius:999px;padding:6px 9px;font-size:10px;font-weight:850;color:#dce2e9}
+.review-reason{margin-top:12px;padding:10px 12px;border-radius:12px;background:#0e1319;border:1px solid rgba(255,255,255,.06);font-size:11px;line-height:1.6;color:#d3dae3}
+.review-work-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px}
+.review-work-actions a{text-decoration:none}
+.review-work-item.decision-approved{border-color:rgba(75,201,126,.34)}
+.review-work-item.decision-approved .review-state{border-color:rgba(75,201,126,.35);color:#baf0ca;background:rgba(75,201,126,.07)}
+.review-work-item.decision-excluded{border-color:rgba(247,99,99,.34)}
+.review-work-item.decision-excluded .review-state{border-color:rgba(247,99,99,.35);color:#ffc0c0;background:rgba(247,99,99,.07)}
+.review-work-item.decision-pending .review-state{border-color:rgba(241,176,72,.35);color:#f5d19b;background:rgba(241,176,72,.07)}
+@media(max-width:700px){.review-policy,.review-work-head{align-items:flex-start;flex-direction:column}.review-policy .hero-actions,.review-work-actions{width:100%}.review-policy .btn,.review-work-actions .btn,.review-work-actions a.btn{width:100%;text-align:center}}

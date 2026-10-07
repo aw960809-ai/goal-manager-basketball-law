@@ -14,6 +14,7 @@
       goals:[],
       studyLogs:[],
       personalEvents:[],
+      reviewDecisions:{},
       timer:idleTimer(),
       settings:{onboardingComplete:false,theme:'arena'}
     };
@@ -64,6 +65,18 @@
       orphaned:!!x.orphaned
     };
   }
+
+  function normalizeReviewDecisions(input){
+    const src=input&&typeof input==='object'?input:{},out={};
+    for(const [k,v] of Object.entries(src)){
+      if(!v||typeof v!=='object'||!['approve','exclude','pending'].includes(v.action))continue;
+      const parts=String(k).split(':'),kind=parts.shift(),id=parts.join(':');
+      if(!['activity','scholarship'].includes(kind)||!id)continue;
+      out[k]={kind,id,action:v.action,note:String(v.note||'').trim(),title:String(v.title||'').trim(),updatedAt:String(v.updatedAt||'')};
+    }
+    return out;
+  }
+
   function normalizeEvent(ev){
     const x={...(ev||{})};
     return {id:String(x.id||''),date:String(x.date||''),title:String(x.title||'').trim(),meta:String(x.meta||'個人行事')};
@@ -102,6 +115,7 @@
       goals:Array.isArray(src.goals)?src.goals.filter(Boolean).map(normalizeGoal):[],
       studyLogs:Array.isArray(src.studyLogs)?src.studyLogs.filter(Boolean).map(normalizeLog):[],
       personalEvents:Array.isArray(src.personalEvents)?src.personalEvents.filter(Boolean).map(normalizeEvent):[],
+      reviewDecisions:normalizeReviewDecisions(src.reviewDecisions),
       timer:normalizeTimer(src.timer),
       settings:{...base.settings,...(src.settings||{})}
     };
@@ -127,6 +141,9 @@
         if(!action||Number(action.level)!==3)errors.push('log-action-invalid');
       }
     }
+    for(const [k,d] of Object.entries(s.reviewDecisions||{})){
+      if(!/^(activity|scholarship):.+/.test(k)||!['approve','exclude','pending'].includes(d.action))errors.push('review-decision-invalid');
+    }
     for(const ev of s.personalEvents){
       if(!ev.id||!ev.title||!dateKeyOk(ev.date)||!ev.date)errors.push('personal-event-invalid');
     }
@@ -134,7 +151,7 @@
   }
   function touch(state){const out=normalize(state);out.updatedAt=nowIso();return out;}
 
-  const api={freshState,normalize,validate,validateGoalShape,clone,idleTimer,normalizeTimer,touch};
+  const api={freshState,normalize,validate,validateGoalShape,clone,idleTimer,normalizeTimer,normalizeReviewDecisions,touch};
   root.GMBState=api;
   if(typeof module==='object'&&module.exports)module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:this);

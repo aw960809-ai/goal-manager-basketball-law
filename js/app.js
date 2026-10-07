@@ -1,29 +1,32 @@
 (function(){
   'use strict';
-  const C=window.GMB_CONFIG,Store=window.GMBStorage,Goals=window.GMBGoals,Logs=window.GMBStudyLogs,Timer=window.GMBTimer,A=window.GMBAnalytics,Opp=window.GMBOpportunities,Sch=window.GMBScholarships,Health=window.GMBSystemHealth;
-  let state=Store.load(),page='home',schoolCalendar=[],activityPayload={meta:{},events:[]},scholarshipPayload={meta:{},scholarships:[]},activityFilters={q:'',circle:'all',category:'all',tier:'all'},scholarshipFilters={q:'',kind:'all',tier:'all'},tickHandle=null,publicLoadStatus={calendar:{ok:null,error:''},activity:{ok:null,error:''},scholarship:{ok:null,error:''}},systemPwaStatus=null;
+  const C=window.GMB_CONFIG,Store=window.GMBStorage,Goals=window.GMBGoals,Logs=window.GMBStudyLogs,Timer=window.GMBTimer,A=window.GMBAnalytics,Opp=window.GMBOpportunities,Sch=window.GMBScholarships,Review=window.GMBReview,Health=window.GMBSystemHealth;
+  let state=Store.load(),page='home',schoolCalendar=[],schoolCalendarMeta={},activityPayload={meta:{},events:[]},scholarshipPayload={meta:{},scholarships:[]},activityFilters={q:'',circle:'all',category:'all',tier:'all'},scholarshipFilters={q:'',kind:'all',tier:'all'},tickHandle=null,publicLoadStatus={calendar:{ok:null,error:''},calendarMeta:{ok:null,error:''},activity:{ok:null,error:''},scholarship:{ok:null,error:''}},systemPwaStatus=null;
   const $=s=>document.querySelector(s),$$=s=>Array.from(document.querySelectorAll(s));
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const fmtDate=d=>{try{return new Intl.DateTimeFormat('zh-TW',{month:'numeric',day:'numeric',weekday:'short'}).format(new Date(d+'T00:00:00'))}catch(_){return d}};
   const fmtClock=ms=>{const t=Math.max(0,Math.floor(ms/1000)),h=Math.floor(t/3600),m=Math.floor((t%3600)/60),s=t%60;return[h,m,s].map(x=>String(x).padStart(2,'0')).join(':')};
   const save=()=>{state=Store.save(state);return state};
   function toast(msg){const el=$('#toast');if(!el)return;el.textContent=msg;el.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>el.classList.remove('show'),1800)}
-  function nav(next){page=next;$$('.page').forEach(el=>el.classList.toggle('active',el.dataset.page===next));$$('.nav-btn').forEach(el=>el.classList.toggle('active',el.dataset.nav===next||(['opportunities','scholarships','system'].includes(next)&&el.dataset.nav==='home')));renderCurrent();window.scrollTo({top:0,behavior:'smooth'})}
+  function downloadJson(filename,obj){const blob=new Blob([JSON.stringify(obj,null,2)+'\n'],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),500)}
+  function nav(next){page=next;$$('.page').forEach(el=>el.classList.toggle('active',el.dataset.page===next));$$('.nav-btn').forEach(el=>el.classList.toggle('active',el.dataset.nav===next||(['opportunities','scholarships','review','system'].includes(next)&&el.dataset.nav==='home')));renderCurrent();window.scrollTo({top:0,behavior:'smooth'})}
   const todayMinutes=()=>A.minutes(A.todayLogs(state));
   const weekMinutes=()=>A.minutes(A.weekLogs(state));
   const weekSessions=()=>A.weekLogs(state).length;
   const totalMinutes=()=>A.minutes(state.studyLogs);
   const currentAction=()=>state.timer?.actionId?Goals.byId(state,state.timer.actionId):null;
   const opportunityContext=()=>({today:A.dayKey(new Date()),goals:state.goals||[]});
-  const opportunityCatalog=()=>Opp.build(activityPayload,opportunityContext());
+  const opportunityAutoCatalog=()=>Opp.build(activityPayload,opportunityContext());
+  const opportunityCatalog=()=>Review.applyActivity(opportunityAutoCatalog(),state.reviewDecisions||{});
   function opportunitySummary(){const c=opportunityCatalog();return {recommended:c.recommended.length,high:c.recommended.filter(x=>x.fit.tier==='high').length,review:c.review.length,resources:c.resources.length}}
   const scholarshipContext=()=>({today:A.dayKey(new Date())});
-  const scholarshipCatalog=()=>Sch.build(scholarshipPayload,scholarshipContext());
+  const scholarshipAutoCatalog=()=>Sch.build(scholarshipPayload,scholarshipContext());
+  const scholarshipCatalog=()=>Review.applyScholarship(scholarshipAutoCatalog(),state.reviewDecisions||{});
   function scholarshipSummary(){const c=scholarshipCatalog(),st=Sch.stats(c.recommended);return {recommended:c.recommended.length,professional:st.specialty.professional,language:st.specialty.language,review:c.review.length,excluded:c.excluded.length}}
 
   function publicHealth(){
     const now=Date.now();
-    const activity=Health.activity(activityPayload,publicLoadStatus.activity,now),scholarship=Health.scholarship(scholarshipPayload,publicLoadStatus.scholarship,now),calendar=Health.calendar(schoolCalendar,publicLoadStatus.calendar);
+    const activity=Health.activity(activityPayload,publicLoadStatus.activity,now),scholarship=Health.scholarship(scholarshipPayload,publicLoadStatus.scholarship,now),calendar=Health.calendar(schoolCalendar,publicLoadStatus.calendar,schoolCalendarMeta,now);
     return {activity,scholarship,calendar,summary:Health.publicSummary({activity,scholarship,calendar})};
   }
   function pwaHealth(){
@@ -34,6 +37,15 @@
   function homeSystemHealth(){
     const data=publicHealth(),pwa=pwaHealth();
     return `<article class="card system-home-card"><div><p class="eyebrow">SYSTEM HEALTH</p><h3>${esc(data.summary.label)}</h3><p class="muted">Activity ${esc(data.activity.label)} · Scholarship ${esc(data.scholarship.label)} · ${esc(pwa.label)}</p></div><button class="btn" data-go="system">系統狀態</button></article>`;
+  }
+
+  function reviewSummary(){
+    const a=opportunityCatalog(),s=scholarshipCatalog(),d=Review.stats(state.reviewDecisions||{});
+    return {pendingActivity:a.review.length,pendingScholarship:s.review.length,pending:a.review.length+s.review.length,decisions:d};
+  }
+  function homeReviewCenter(){
+    const r=reviewSummary();
+    return `<article class="card system-home-card review-home-card"><div><p class="eyebrow">REVIEW CENTER</p><h3>${r.pending} 筆待複核</h3><p class="muted">活動 ${r.pendingActivity} · 獎學金 ${r.pendingScholarship} · 已人工核准 ${r.decisions.approve} · 已人工排除 ${r.decisions.exclude}</p></div><button class="btn" data-go="review">開啟審查</button></article>`;
   }
 
   function timeline(limit=6){
@@ -52,12 +64,12 @@
     const home=$('#pageHome'),roots=Goals.roots(state),next=Goals.nextAction(state);
     if(!state.goals.length){
       home.innerHTML=`<section class="hero"><p class="eyebrow">WELCOME TO YOUR SEASON</p><h1>新的球季，從第一個目標開始。</h1><p>個人資料從空白開始；東海官方校曆與公開資料則維持獨立提供。</p><div class="hero-actions"><button class="btn primary" data-open="goalWizard">建立第一個目標</button><button class="btn" data-go="execute">開始自由計時</button></div></section>
-      <div class="section-head"><h2>START HERE</h2><small>先完成一條可用的學習閉環</small></div><div class="quick-row"><button class="quick" data-open="goalWizard"><span class="ico">◎</span><b>建立目標</b><small>方向 → 階段目標 → 具體行動</small></button><button class="quick" data-go="execute"><span class="ico">◷</span><b>開始訓練</b><small>目標計時或自由計時</small></button><button class="quick" data-go="opportunities"><span class="ico">⌖</span><b>探索機會</b><small>法律系導向 Activity Radar</small></button></div><div class="section-head"><h2>OPPORTUNITY SCOUTING</h2><small>公開活動資料</small></div>${homeOpportunityCards()}${homeSystemHealth()}`;
+      <div class="section-head"><h2>START HERE</h2><small>先完成一條可用的學習閉環</small></div><div class="quick-row"><button class="quick" data-open="goalWizard"><span class="ico">◎</span><b>建立目標</b><small>方向 → 階段目標 → 具體行動</small></button><button class="quick" data-go="execute"><span class="ico">◷</span><b>開始訓練</b><small>目標計時或自由計時</small></button><button class="quick" data-go="opportunities"><span class="ico">⌖</span><b>探索機會</b><small>法律系導向 Activity Radar</small></button></div><div class="section-head"><h2>OPPORTUNITY SCOUTING</h2><small>公開活動資料</small></div>${homeOpportunityCards()}${homeReviewCenter()}${homeSystemHealth()}`;
     }else{
       home.innerHTML=`<section class="hero"><p class="eyebrow">TODAY'S GAME PLAN</p><h1>${todayMinutes()} MIN <span class="muted" style="font-size:.48em;font-weight:650">今日投入</span></h1><p>${next?`下一個具體行動：<b>${esc(next.name)}</b>${next.targetDate?` · ${esc(fmtDate(next.targetDate))}`:''}`:'目前具體行動都已完成，可以建立下一個訓練項目。'}</p><div class="hero-actions"><button class="btn primary" data-go="execute">開始訓練</button><button class="btn" data-open="backfillDialog">補登時間</button></div></section>
       <div class="section-head"><h2>WEEKLY STATS</h2><small>全部從 Study Log 即時計算</small></div><div class="grid three"><article class="card metric"><small>本週投入</small><strong>${weekMinutes()}</strong><span>分鐘</span></article><article class="card metric"><small>本週 Sessions</small><strong>${weekSessions()}</strong><span>次</span></article><article class="card metric"><small>連續投入</small><strong>${A.streakDays(state)}</strong><span>天</span></article></div>
       <div class="section-head"><h2>UP NEXT</h2><small>校曆＋個人行事＋目標日期</small></div><article class="card">${renderEventRows(timeline(5))}</article>
-      <div class="section-head"><h2>OPPORTUNITY SCOUTING</h2><small>法律系導向</small></div>${homeOpportunityCards()}${homeSystemHealth()}<div class="section-head"><h2>SEASON GOALS</h2><small>主要方向</small></div><div class="grid two">${roots.slice(0,4).map(r=>`<article class="card game-card"><h3>${esc(r.name)}</h3><div class="goal-meta">${Goals.progress(state,r.id)}% 完成</div><div class="progress"><span style="width:${Goals.progress(state,r.id)}%"></span></div></article>`).join('')}</div>`;
+      <div class="section-head"><h2>OPPORTUNITY SCOUTING</h2><small>法律系導向</small></div>${homeOpportunityCards()}${homeReviewCenter()}${homeSystemHealth()}<div class="section-head"><h2>SEASON GOALS</h2><small>主要方向</small></div><div class="grid two">${roots.slice(0,4).map(r=>`<article class="card game-card"><h3>${esc(r.name)}</h3><div class="goal-meta">${Goals.progress(state,r.id)}% 完成</div><div class="progress"><span style="width:${Goals.progress(state,r.id)}%"></span></div></article>`).join('')}</div>`;
     }
     wireDynamic();
   }
@@ -192,6 +204,31 @@
   }
 
 
+  function reviewDecisionLabel(decision){
+    if(!decision)return '自動待複核';
+    return decision.action==='approve'?'人工核准':decision.action==='exclude'?'人工排除':'維持待複核';
+  }
+  function reviewWorkbenchRow(kind,row){
+    const d=Review.get(state.reviewDecisions||{},kind,row.id),reason=kind==='activity'?(row.qualityReason||'來源待複核'):(row.eligibility?.reason||'資格待複核');
+    const meta=kind==='activity'?`${row.circleLabel||''}${row.categoryLabel?` · ${row.categoryLabel}`:''}${row.date?` · ${fmtDate(row.date)}`:''}`:`${row.deadline?`截止 ${fmtDate(row.deadline)} · `:''}${row.source||'公開資料'}`;
+    const tone=d?.action==='approve'?'decision-approved':d?.action==='exclude'?'decision-excluded':d?.action==='pending'?'decision-pending':'';
+    return `<article class="card review-work-item ${tone}"><div class="review-work-head"><div><span class="category-chip">${kind==='activity'?'ACTIVITY':'SCHOLARSHIP'}</span><h3>${esc(row.title)}</h3><p class="muted">${esc(meta)}</p></div><span class="review-state">${esc(reviewDecisionLabel(d))}</span></div><div class="review-reason">${esc(reason)}</div><div class="review-work-actions">${row.url?`<a class="btn" href="${esc(row.url)}" target="_blank" rel="noopener noreferrer">官方資訊</a>`:''}<button class="btn primary" data-review-action="approve" data-review-kind="${kind}" data-review-id="${esc(row.id)}" data-review-title="${esc(row.title)}">核准推薦</button><button class="btn danger" data-review-action="exclude" data-review-kind="${kind}" data-review-id="${esc(row.id)}" data-review-title="${esc(row.title)}">排除</button><button class="btn" data-review-action="pending" data-review-kind="${kind}" data-review-id="${esc(row.id)}" data-review-title="${esc(row.title)}">維持待複核</button>${d?`<button class="btn" data-review-action="reset" data-review-kind="${kind}" data-review-id="${esc(row.id)}" data-review-title="${esc(row.title)}">恢復自動判定</button>`:''}</div></article>`;
+  }
+  function renderReview(){
+    const root=$('#pageReview'),autoA=opportunityAutoCatalog(),autoS=scholarshipAutoCatalog(),decisions=Review.normalize(state.reviewDecisions||{}),stats=Review.stats(decisions);
+    const aRows=autoA.review||[],sRows=autoS.review||[],unresolved=[...aRows.map(x=>['activity',x]),...sRows.map(x=>['scholarship',x])].filter(([kind,row])=>{const d=Review.get(decisions,kind,row.id);return !d||d.action==='pending'}).length;
+    const history=Object.values(decisions).sort((a,b)=>String(b.updatedAt).localeCompare(String(a.updatedAt)));
+    root.innerHTML=`<div class="section-head scouting-head"><div><button class="back-link" data-go="home">← 首頁</button><p class="eyebrow">REVIEW CENTER</p><h2>人工審查工作台</h2></div><span class="version-chip">${unresolved} 待處理</span></div>
+    <p class="muted">只允許人工處理「自動待複核」項目。獎學金已被硬性資格規則排除的項目不會出現在這裡，也不能靠人工核准繞過縣市、清寒、科系等硬性規則。</p>
+    <div class="grid three review-kpis"><article class="card metric"><small>自動待複核</small><strong>${aRows.length+sRows.length}</strong><span>活動 ${aRows.length} · 獎學金 ${sRows.length}</span></article><article class="card metric"><small>仍待處理</small><strong>${unresolved}</strong><span>未決定或刻意保留</span></article><article class="card metric"><small>人工決策</small><strong>${stats.approve+stats.exclude}</strong><span>核准 ${stats.approve} · 排除 ${stats.exclude}</span></article></div>
+    <article class="card review-policy"><div><b>決策保存方式</b><p class="muted">人工決策保存在這個 Basketball Goal Manager 的獨立個人資料中；AutoFetch 更新 catalog 後，只要同一 ID 仍存在就會自動套用。可匯出／匯入 JSON 備份。</p></div><div class="hero-actions"><button class="btn" data-review-export>匯出審查決策</button><button class="btn" data-review-import>匯入審查決策</button><input id="reviewImportInput" type="file" accept="application/json,.json" hidden></div></article>
+    <div class="section-head"><h2>ACTIVITY REVIEW</h2><small>${aRows.length} 筆自動待複核</small></div><div class="review-work-list">${aRows.map(x=>reviewWorkbenchRow('activity',x)).join('')||'<div class="empty">目前沒有活動待複核。</div>'}</div>
+    <div class="section-head"><h2>SCHOLARSHIP REVIEW</h2><small>${sRows.length} 筆資格／來源待複核</small></div><div class="review-work-list">${sRows.map(x=>reviewWorkbenchRow('scholarship',x)).join('')||'<div class="empty">目前沒有獎學金待複核。</div>'}</div>
+    <details class="bucket-panel"><summary>審查決策紀錄 <span>${history.length}</span></summary><div class="bucket-body">${history.map(d=>`<div class="review-row"><div><b>${esc(d.title||d.id)}</b><small>${d.kind==='activity'?'活動':'獎學金'} · ${esc(d.updatedAt?new Date(d.updatedAt).toLocaleString('zh-TW'):'')}</small></div><span>${esc(reviewDecisionLabel(d))}</span></div>`).join('')||'<div class="muted">尚無人工審查決策。</div>'}</div></details>`;
+    wireDynamic();
+  }
+
+
   function healthCard(title,item,extra=''){
     const age=item.updatedAt?` · ${esc(Health.formatAge(item.ageHours))}`:'';
     const count=item.count===null||item.count===undefined?'—':item.count;
@@ -202,17 +239,17 @@
     const release=raw.release||{};
     root.innerHTML=`<div class="section-head scouting-head"><div><button class="back-link" data-go="home">← 首頁</button><p class="eyebrow">SYSTEM HEALTH</p><h2>資料與版本狀態</h2></div><span class="version-chip">v${esc(C.version)}</span></div>
     <section class="health-banner ${healthToneClass(data.summary.tone)}"><div><b>${esc(data.summary.label)}</b><p>資料讀取失敗會直接顯示錯誤，不再以 0/0 偽裝成來源統計。</p></div><button class="btn" data-health-refresh>重新檢查</button></section>
-    <div class="grid three health-grid">${healthCard('ACTIVITY DATA',data.activity,data.activity.review!==undefined?`<div class="mini-stat"><span>待複核</span><b>${data.activity.review}</b></div>`:'')}${healthCard('SCHOLARSHIP DATA',data.scholarship,`<div class="mini-stat"><span>資格驗證</span><b>${data.scholarship.verified??'—'}</b></div><div class="mini-stat"><span>待驗證</span><b>${data.scholarship.unverified??'—'}</b></div>`)}${healthCard('THU CALENDAR',data.calendar)}</div>
+    <div class="grid three health-grid">${healthCard('ACTIVITY DATA',data.activity,data.activity.review!==undefined?`<div class="mini-stat"><span>待複核</span><b>${data.activity.review}</b></div>`:'')}${healthCard('SCHOLARSHIP DATA',data.scholarship,`<div class="mini-stat"><span>資格驗證</span><b>${data.scholarship.verified??'—'}</b></div><div class="mini-stat"><span>待驗證</span><b>${data.scholarship.unverified??'—'}</b></div>`)}${healthCard('THU CALENDAR',data.calendar,data.calendar.sourceAnnouncementUrl?`<div class="mini-stat"><span>來源</span><b><a href="${esc(data.calendar.sourceAnnouncementUrl)}" target="_blank" rel="noopener noreferrer">官方公告</a></b></div>`:'')}</div>
     <div class="section-head"><h2>PWA / RELEASE</h2><small>page · worker · published release</small></div><article class="card release-card"><div class="health-card-head"><div><p class="eyebrow">VERSION COHERENCE</p><h3>${esc(pwa.label)}</h3></div><span class="health-pill ${healthToneClass(pwa.tone)}">${esc(pwa.status.toUpperCase())}</span></div><div class="release-rows"><div><span>頁面</span><b>${esc(pwa.pageVersion||C.version)}</b></div><div><span>Service Worker</span><b>${esc(pwa.workerVersion||'尚未回報')}</b></div><div><span>發布版本</span><b>${esc(pwa.releaseVersion||'尚未讀取')}</b></div><div><span>網路</span><b>${pwa.status==='offline'?'離線':'在線'}</b></div></div>${raw.waiting?'<p class="health-note">已有新版 Service Worker 等待啟用；完成中的 Timer 不會被自動中斷。</p>':''}<div class="hero-actions"><button class="btn primary" data-health-refresh>檢查更新</button><button class="btn" data-reload-app>重新載入</button></div></article>
-    <div class="section-head"><h2>AUTO DATA</h2><small>GitHub Actions</small></div><article class="card"><div class="status-line"><span class="dot"></span><b>${release.autofetch?.enabled===true?'AutoFetch 已設定':'AutoFetch 狀態待確認'}</b></div><p class="muted">活動與獎學金公開資料由獨立 updater 更新；網站只讀取產出的 JSON，再由本網站自己的 Activity / Scholarship policy 重新分類。</p><div class="mini-stat"><span>排程</span><b>${release.autofetch?.schedule==='daily-twice'?'每日兩次':'—'}</b></div><div class="mini-stat"><span>資料過舊門檻</span><b>${release.autofetch?.staleAfterHours||Health.STALE_HOURS} 小時</b></div></article>
-    <div class="phase-note">公開資料與個人資料完全分離。AutoFetch 只會更新 repository 內的公開 catalog，不會接觸 localStorage、IndexedDB、目標、Timer 或 Study Log。</div>`;
+    <div class="section-head"><h2>AUTO DATA</h2><small>GitHub Actions</small></div><article class="card"><div class="status-line"><span class="dot"></span><b>${release.autofetch?.enabled===true?'AutoFetch 已設定':'AutoFetch 狀態待確認'}</b></div><p class="muted">活動、獎學金與東海校曆皆由獨立 updater 更新；網站只讀取產出的 JSON，再由本網站自己的 policy 重新分類。失敗時會主動建立 GitHub Alert Issue。</p><div class="mini-stat"><span>活動／獎學金排程</span><b>${release.autofetch?.schedule==='daily-twice'?'每日兩次':'—'}</b></div><div class="mini-stat"><span>校曆排程</span><b>${release.autofetch?.calendarSchedule==='daily-once'?'每日一次':'—'}</b></div><div class="mini-stat"><span>失敗通知</span><b>${release.autofetch?.failureAlerts==='github-issue'?'GitHub Issue 主動告警':'—'}</b></div><div class="mini-stat"><span>資料過舊門檻</span><b>${release.autofetch?.staleAfterHours||Health.STALE_HOURS} 小時</b></div></article>
+    <div class="section-head"><h2>REVIEW GOVERNANCE</h2><small>人工決策只作用於自動待複核</small></div><article class="card"><div class="status-line"><span class="dot"></span><b>Review Center 已啟用</b></div><p class="muted">人工核准／排除會保存在此網站的獨立使用者資料中；硬性資格排除不會被人工審查覆蓋。</p><div class="hero-actions"><button class="btn primary" data-go="review">開啟審查中心</button></div></article><div class="phase-note">公開資料與個人資料完全分離。AutoFetch 只會更新 repository 內的公開 catalog，不會接觸 localStorage、IndexedDB、目標、Timer 或 Study Log。</div>`;
     wireDynamic();
   }
   async function refreshSystemStatus(){
     try{systemPwaStatus=await window.GMBPWA?.check();if(page==='system')renderSystem();else renderCurrent();toast('狀態已重新檢查')}catch(err){toast('版本檢查失敗：'+String(err?.message||err))}
   }
 
-  function renderCurrent(){if(page==='home')renderHome();else if(page==='goals')renderGoals();else if(page==='execute')renderExecute();else if(page==='calendar')renderCalendar();else if(page==='analytics')renderAnalytics();else if(page==='opportunities')renderOpportunities();else if(page==='scholarships')renderScholarships();else if(page==='system')renderSystem()}
+  function renderCurrent(){if(page==='home')renderHome();else if(page==='goals')renderGoals();else if(page==='execute')renderExecute();else if(page==='calendar')renderCalendar();else if(page==='analytics')renderAnalytics();else if(page==='opportunities')renderOpportunities();else if(page==='scholarships')renderScholarships();else if(page==='review')renderReview();else if(page==='system')renderSystem()}
   function openAddGoal(level,parentId){const labels={1:['新增方向','方向名稱'],2:['新增階段目標','階段目標名稱'],3:['新增具體行動','具體行動名稱']};$('#goalAddLevel').value=String(level);$('#goalAddParent').value=parentId||'';$('#goalAddTitle').textContent=labels[level][0];$('#goalAddLabel').textContent=labels[level][1];$('#goalAddName').value='';$('#goalAddDate').value='';$('#goalAddDialog').showModal();setTimeout(()=>$('#goalAddName').focus(),40)}
   function openEditGoal(id){const g=Goals.byId(state,id);if(!g)return;$('#goalEditId').value=g.id;$('#goalEditName').value=g.name;$('#goalEditDate').value=g.targetDate||'';$('#goalEditDialog').showModal()}
   function openBackfill(){const sel=$('#backfillTarget');sel.innerHTML='<option value="free">其他讀書時間</option>'+Goals.actions(state).map(a=>`<option value="${esc(a.id)}">${esc(Goals.pathText(state,a.id))}</option>`).join('');$('#backfillDate').value=A.dayKey(new Date());$('#backfillMinutes').value='';$('#backfillLabel').value='';$('#backfillDialog').showModal()}
@@ -221,6 +258,10 @@
     $$('[data-go]').forEach(b=>b.onclick=()=>nav(b.dataset.go));
     $$('[data-health-refresh]').forEach(b=>b.onclick=()=>void refreshSystemStatus());
     $$('[data-reload-app]').forEach(b=>b.onclick=()=>location.reload());
+    $$('[data-review-action]').forEach(b=>b.onclick=()=>{try{const action=b.dataset.reviewAction,kind=b.dataset.reviewKind,id=b.dataset.reviewId,title=b.dataset.reviewTitle||'';state.reviewDecisions=Review.set(state.reviewDecisions||{},{kind,id,action,title});save();renderReview();toast(action==='approve'?'已人工核准':action==='exclude'?'已人工排除':action==='reset'?'已恢復自動判定':'已保留待複核')}catch(err){toast(String(err?.message||err))}});
+    $('[data-review-export]')?.addEventListener('click',()=>downloadJson(`gmb-review-decisions-${A.dayKey(new Date())}.json`,Review.exportPayload(state.reviewDecisions||{})));
+    $('[data-review-import]')?.addEventListener('click',()=>$('#reviewImportInput')?.click());
+    $('#reviewImportInput')?.addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{const payload=JSON.parse(await file.text());state.reviewDecisions=Review.importPayload(payload);save();renderReview();toast('審查決策已匯入')}catch(err){toast('匯入失敗：'+String(err?.message||err))}});
     $$('[data-open]').forEach(b=>b.onclick=()=>b.dataset.open==='backfillDialog'?openBackfill():$('#'+b.dataset.open)?.showModal());
     $$('[data-add-level]').forEach(b=>b.onclick=()=>openAddGoal(Number(b.dataset.addLevel),b.dataset.parent||null));
     $$('[data-edit-goal]').forEach(b=>b.onclick=()=>openEditGoal(b.dataset.editGoal));
@@ -245,8 +286,9 @@
   }
   async function loadPublicData(){
     const fetchJson=async(url,key)=>{try{const r=await fetch(url,{cache:'no-store'});if(!r.ok)throw new Error(`HTTP ${r.status}`);const data=await r.json();publicLoadStatus[key]={ok:true,error:''};return data}catch(err){publicLoadStatus[key]={ok:false,error:String(err?.message||err)};throw err}};
-    const [cal,acts,sch]=await Promise.allSettled([fetchJson('./data/school-calendar.json','calendar'),fetchJson('./data/activities.json','activity'),fetchJson('./data/scholarships.json','scholarship')]);
+    const [cal,calMeta,acts,sch]=await Promise.allSettled([fetchJson('./data/school-calendar.json','calendar'),fetchJson('./data/school-calendar-meta.json','calendarMeta'),fetchJson('./data/activities.json','activity'),fetchJson('./data/scholarships.json','scholarship')]);
     schoolCalendar=cal.status==='fulfilled'&&Array.isArray(cal.value)?cal.value:[];
+    schoolCalendarMeta=calMeta.status==='fulfilled'&&calMeta.value&&typeof calMeta.value==='object'?calMeta.value:{};
     activityPayload=acts.status==='fulfilled'&&acts.value&&typeof acts.value==='object'?acts.value:{meta:{},events:[]};
     scholarshipPayload=sch.status==='fulfilled'&&sch.value&&typeof sch.value==='object'?sch.value:{meta:{},scholarships:[]};
     renderCurrent();

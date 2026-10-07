@@ -1,14 +1,18 @@
 {
   "productId": "gmb-law",
-  "version": "0.6.1",
-  "schemaVersion": 2,
+  "version": "0.7.0",
+  "schemaVersion": 3,
   "channel": "stable",
-  "releasedAt": "2026-10-07T23:50:00+08:00",
+  "releasedAt": "2026-10-08T00:20:00+08:00",
   "autofetch": {
     "enabled": true,
     "schedule": "daily-twice",
     "activity": true,
     "scholarship": true,
-    "staleAfterHours": 36
+    "staleAfterHours": 36,
+    "calendar": true,
+    "calendarSchedule": "daily-once",
+    "failureAlerts": "github-issue",
+    "reviewWorkbench": true
   }
 }

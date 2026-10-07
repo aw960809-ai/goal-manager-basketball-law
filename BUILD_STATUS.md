@@ -1,11 +1,21 @@
-# Build Status — 0.6.1
+# Build Status — 0.7.0
 
-Production deployment readiness release.
+## Automation & Review
 
-- Independent project / PWA / storage namespaces preserved.
-- Three-level canonical goal model preserved; no Level 4 runtime creation.
-- Activity Radar and Scholarship Eligibility behavior retained.
-- Data Health + release coherence retained.
-- GitHub Pages deployment uses GitHub Actions.
-- Successful AutoFetch now triggers a Pages deployment through `workflow_run`.
-- Guarded Termux `scripts/production-deploy.sh` creates the dedicated repository, enables Pages, performs the first AutoFetch and verifies the published release.
+- ✅ Activity AutoFetch — twice daily
+- ✅ Scholarship AutoFetch + official eligibility enrichment — twice daily
+- ✅ THU official school-calendar AutoFetch — once daily, latest academic-year announcement/PDF discovery
+- ✅ Calendar destructive-change guard + last-good retention
+- ✅ GitHub Issue proactive alerts when public-data or calendar AutoFetch fails; recovery closes the alert
+- ✅ Review Center — human review for Activity / Scholarship items that are already in the automatic review bucket
+- ✅ Hard scholarship exclusions cannot be manually promoted
+- ✅ Review decisions persist in isolated user storage and can be exported/imported as JSON
+- ✅ System Health shows Activity, Scholarship, THU Calendar freshness and PWA/release coherence
+- ✅ AutoFetch-triggered Pages redeploy includes public-data and calendar workflows
+
+## Safety boundaries
+
+- Review Center never edits the public catalog.
+- Manual decisions apply only to automatic `review` items on this PWA profile.
+- Scholarship REGION / ECONOMIC / IDENTITY / MAJOR / other hard exclusions remain canonical and cannot be overridden by Review Center.
+- Public-data workflows never read or modify localStorage, IndexedDB, goals, Timer or Study Logs.

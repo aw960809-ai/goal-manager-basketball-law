@@ -57,7 +57,7 @@ On Android, verify:
 - offline reopen uses the last good cache;
 - after returning online, `SYSTEM HEALTH` reports current release coherence.
 
-## One-command Termux production deployment (v0.6.1+)
+## One-command Termux production deployment (v0.7.0+)
 
 The installed project now contains a guarded deployment helper:
 
@@ -79,3 +79,11 @@ It will:
 - verify the published `release.json` is the expected version.
 
 `pages.yml` also listens for a successful AutoFetch `workflow_run`, so future scheduled catalog refreshes redeploy the latest `main` even though AutoFetch commits are created by `GITHUB_TOKEN`.
+
+
+## v0.7.0 automation
+
+- `.github/workflows/autofetch.yml`: Activity + Scholarship, twice daily.
+- `.github/workflows/calendar-autofetch.yml`: THU official calendar, once daily.
+- Both workflows create a GitHub Issue on failure and close it after recovery.
+- Successful updater runs cause Pages to redeploy through `workflow_run`.

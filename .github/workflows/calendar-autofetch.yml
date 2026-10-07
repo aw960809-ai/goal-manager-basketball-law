@@ -1,0 +1,97 @@
+name: Basketball Goal Manager THU Calendar AutoFetch
+on:
+  schedule:
+    - cron: "33 3 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+  issues: write
+concurrency:
+  group: gmb-law-calendar-writer
+  cancel-in-progress: false
+jobs:
+  refresh-calendar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install PDF text extractor
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends poppler-utils
+      - name: Validate updater and baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile tools/autofetch/calendar_autofetch.py
+          python tools/autofetch/calendar_autofetch.py --self-test
+          python -m json.tool data/school-calendar.json >/dev/null
+          python -m json.tool data/school-calendar-meta.json >/dev/null
+          cp data/school-calendar.json "$RUNNER_TEMP/calendar-before.json"
+      - name: Refresh THU official calendar
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/autofetch/calendar_autofetch.py --repo .
+      - name: Calendar integrity guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          old=json.loads((Path(os.environ['RUNNER_TEMP'])/'calendar-before.json').read_text(encoding='utf-8'))
+          new=json.loads(Path('data/school-calendar.json').read_text(encoding='utf-8'))
+          meta=json.loads(Path('data/school-calendar-meta.json').read_text(encoding='utf-8'))
+          if not isinstance(new,list) or len(new)<20: raise SystemExit('CALENDAR_INTEGRITY_FAIL too few events')
+          keys=[(x.get('date'),x.get('title')) for x in new]
+          if any(not d or not t for d,t in keys) or len(keys)!=len(set(keys)): raise SystemExit('CALENDAR_INTEGRITY_FAIL invalid/duplicate rows')
+          if len(old)>=20 and len(new)<len(old)*0.50: raise SystemExit('CALENDAR_INTEGRITY_FAIL destructive shrink')
+          if int(meta.get('eventCount') or 0)!=len(new): raise SystemExit('CALENDAR_INTEGRITY_FAIL meta count mismatch')
+          print(f'CALENDAR_INTEGRITY_OK before={len(old)} after={len(new)} academicYear={meta.get("academicYear")}')
+          PY
+      - name: Full site regression checks
+        run: |
+          set -euo pipefail
+          bash scripts/verify.sh
+          git diff --check
+      - name: Persist calendar sync result
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- data/school-calendar.json data/school-calendar-meta.json; then
+            echo "CALENDAR_UNCHANGED"
+            exit 0
+          fi
+          git config user.name "gmb-law-calendar[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/school-calendar.json data/school-calendar-meta.json
+          git commit -m "chore(calendar): sync THU official calendar ${GITHUB_RUN_ID}"
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+      - name: Open or update calendar failure alert
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title='🚨 Basketball Goal Manager: THU Calendar AutoFetch failed';
+            const body=`Calendar AutoFetch failed.\n\n- Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}\n- Time: ${new Date().toISOString()}\n\nExisting calendar data was retained by the integrity guards.`;
+            const {data:issues}=await github.rest.issues.listForRepo({...context.repo,state:'open',per_page:100});
+            const found=issues.find(x=>x.title===title);
+            if(found) await github.rest.issues.createComment({...context.repo,issue_number:found.number,body});
+            else await github.rest.issues.create({...context.repo,title,body});
+      - name: Close recovered calendar alert
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title='🚨 Basketball Goal Manager: THU Calendar AutoFetch failed';
+            const {data:issues}=await github.rest.issues.listForRepo({...context.repo,state:'open',per_page:100});
+            const found=issues.find(x=>x.title===title);
+            if(found){
+              await github.rest.issues.createComment({...context.repo,issue_number:found.number,body:`✅ Calendar AutoFetch recovered on run ${context.runId}.`});
+              await github.rest.issues.update({...context.repo,issue_number:found.number,state:'closed'});
+            }

@@ -4,7 +4,7 @@
 
 ## 目前版本
 
-`0.6.1` — Production Deploy & AutoFetch→Pages continuity
+`0.7.0` — Automation & Review: THU Calendar AutoFetch, Review Center, proactive workflow alerts
 
 本版完成公開資料自動更新、資料健康狀態、PWA 版本一致性與 GitHub Pages 發布前檢查。
 
@@ -85,3 +85,12 @@ http://127.0.0.1:8081/index.html?v=060
 5. AutoFetch / Data Health / PWA release coherence
 
 下一階段是正式 GitHub repository / GitHub Pages 上線與整體手機 acceptance，不再加入新的核心模組。
+
+
+## v0.7.0 Automation & Review
+
+- Public Activity and Scholarship catalogs: twice-daily AutoFetch.
+- THU official academic calendar: daily AutoFetch from the newest official calendar announcement/PDF.
+- AutoFetch failure: creates/updates a GitHub Issue; a later successful run closes it.
+- Review Center: approve, exclude, or deliberately keep automatic review items pending. Decisions stay in the isolated PWA user state and can be exported/imported.
+- Hard Scholarship exclusions are never bypassed by manual review.

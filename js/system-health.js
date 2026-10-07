@@ -6,6 +6,7 @@
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
   const STALE_HOURS=36;
+  const CALENDAR_STALE_HOURS=72;
   const str=v=>String(v??'').trim();
   const num=v=>{const n=Number(v);return Number.isFinite(n)?n:null};
   function ageHours(value,now=Date.now()){
@@ -39,10 +40,14 @@
     if(sources!==null&&sources>0){const h=healthy!==null?healthy:Math.max(0,sources-(failed||0));sourceText=`${h}/${sources} 類別正常`;}
     return {kind:'scholarship',...f,count:rows.length,updatedAt:str(meta.updatedAt),sourceText,verified:num(detail.detailVerified),unverified:num(detail.detailUnverified),failed:failed||0};
   }
-  function calendar(rows,load={ok:true}){
-    if(load?.ok===false)return {kind:'calendar',status:'error',tone:'bad',label:'無法讀取',detail:str(load.error)||'校曆資料讀取失敗',count:null};
-    const count=Array.isArray(rows)?rows.length:0;
-    return count>0?{kind:'calendar',status:'ready',tone:'good',label:'已載入',count}:{kind:'calendar',status:'empty',tone:'warn',label:'目前無資料',count:0};
+  function calendar(rows,load={ok:true},meta={},now=Date.now()){
+    if(load?.ok===false)return {kind:'calendar',status:'error',tone:'bad',label:'無法讀取',detail:str(load.error)||'校曆資料讀取失敗',count:null,updatedAt:'',sourceText:'來源狀態未知'};
+    const count=Array.isArray(rows)?rows.length:0,updatedAt=str(meta?.checkedAt||meta?.updatedAt),age=ageHours(updatedAt,now);
+    if(!count)return {kind:'calendar',status:'empty',tone:'warn',label:'目前無資料',count:0,updatedAt,ageHours:age,sourceText:'東海官方校曆'};
+    const academic=meta?.academicYear?`${meta.academicYear} 學年度 · `:'';
+    if(!updatedAt)return {kind:'calendar',status:'unknown',tone:'warn',label:'同步時間未知',count,updatedAt:'',ageHours:null,sourceText:`${academic}東海官方行事曆`,sourceAnnouncementUrl:str(meta?.sourceAnnouncementUrl),parseMethod:str(meta?.parseMethod)};
+    const stale=age!==null&&age>CALENDAR_STALE_HOURS;
+    return {kind:'calendar',status:stale?'stale':'ready',tone:stale?'warn':'good',label:stale?'同步過舊':'已同步',count,updatedAt,ageHours:age,sourceText:`${academic}東海官方行事曆`,sourceAnnouncementUrl:str(meta?.sourceAnnouncementUrl),parseMethod:str(meta?.parseMethod)};
   }
   function publicSummary(parts){
     const list=[parts.activity,parts.scholarship,parts.calendar].filter(Boolean);
@@ -65,5 +70,5 @@
     if(hours===null||hours===undefined||!Number.isFinite(Number(hours)))return '時間未知';
     const n=Number(hours);if(n<1)return '1 小時內';if(n<24)return `${Math.floor(n)} 小時前`;return `${Math.floor(n/24)} 天前`;
   }
-  return {STALE_HOURS,ageHours,freshness,activity,scholarship,calendar,publicSummary,versionSummary,formatAge};
+  return {STALE_HOURS,CALENDAR_STALE_HOURS,ageHours,freshness,activity,scholarship,calendar,publicSummary,versionSummary,formatAge};
 });

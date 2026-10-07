@@ -19,9 +19,12 @@ if(!sw.includes(`const VERSION='${config.version}'`))throw new Error('service wo
 if(!html.includes(`app-config.js?v=${config.version}`))throw new Error('HTML asset version mismatch');
 if(manifest.id!==config.pwa.manifestId)throw new Error('manifest id mismatch');
 if(release.autofetch?.enabled!==true)throw new Error('release metadata says AutoFetch disabled');
+if(release.autofetch?.calendar!==true)throw new Error('release metadata says calendar AutoFetch disabled');
+if(release.autofetch?.failureAlerts!=='github-issue')throw new Error('release metadata missing failure alerts');
 console.log('RELEASE_CONTRACT_OK',config.version,manifest.id);
 NODE
 python -m json.tool release.json >/dev/null
 python -m json.tool tools/autofetch/sources.json >/dev/null
 python -m json.tool tools/autofetch/scholarship-sources.json >/dev/null
+python -m json.tool data/school-calendar-meta.json >/dev/null
 echo "RELEASE_PREFLIGHT_OK"

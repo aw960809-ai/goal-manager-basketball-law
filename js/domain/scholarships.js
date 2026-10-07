@@ -9,7 +9,7 @@
   const CODE_LABELS=Object.freeze({
     REGION:'縣市／地域限制',ECONOMIC:'清寒／經濟弱勢',IDENTITY:'特定族群／身分',MILITARY_PUBLIC:'軍公教／軍警消',
     HEALTH:'疾病／身障／醫療',SPECIAL_CIRCUMSTANCE:'急難／災害／特殊遭遇',AFFILIATION:'特定組織／親屬',
-    STUDENT_LEVEL:'學制不符',MAJOR:'科系不符',UNVERIFIED:'資格尚未完成驗證',EXPIRED:'已截止／失效',DUPLICATE:'重複資料',PASS:'可推薦'
+    STUDENT_LEVEL:'學制不符',MAJOR:'科系不符',UNVERIFIED:'資格尚未完成驗證',EXPIRED:'已截止／失效',DUPLICATE:'重複資料',MANUAL_EXCLUDED:'人工排除',MANUAL_APPROVED:'人工核准',PASS:'可推薦'
   });
   const SPECIALTY_LABELS=Object.freeze({professional:'專業考照',language:'外語能力',general:'一般獎學金'});
   const REGION_PLACES=/(?:基隆|臺北|台北|新北|桃園|新竹|苗栗|臺中|台中|彰化|南投|雲林|嘉義市|嘉義縣|臺南|台南|高雄|屏東|宜蘭|花蓮|臺東|台東|澎湖|金門|連江|恆春|熱河省)/;
