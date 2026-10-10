@@ -12,10 +12,11 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from html.parser import HTMLParser
 from pathlib import Path
-from urllib.parse import urljoin
+from urllib.parse import quote, urljoin
 from urllib.request import Request, urlopen
 
 USER_AGENT='BasketballGoalManager-CalendarAutoFetch/0.9.1'
+URL_SAFE=":/?#[]@!$&'()*+,;=%"
 LIST_URL='https://registcourse.thu.edu.tw/web/news/list.php?page={page}'
 BASE='https://registcourse.thu.edu.tw/'
 CAL_TITLE_RX=re.compile(r'(?:本校)?(?P<year>\d{3})\s*學年度行事曆')
@@ -44,7 +45,7 @@ class Links(HTMLParser):
             self.items.append((self._href,text)); self._href=None; self._buf=[]
 
 def fetch_bytes(url:str)->bytes:
-    req=Request(url,headers={'User-Agent':USER_AGENT,'Accept':'*/*'})
+    req=Request(quote(url,safe=URL_SAFE),headers={'User-Agent':USER_AGENT,'Accept':'*/*'})
     with urlopen(req,timeout=35) as r:
         data=r.read(12_000_000)
         if not data: raise RuntimeError('empty response')
@@ -178,6 +179,11 @@ def atomic_json(path:Path,obj):
     json.loads(tmp.read_text(encoding='utf-8'));tmp.replace(path)
 
 def self_test():
+    test_url='https://example.org/東海大學115學年度行事曆.pdf?revision=1'
+    encoded=quote(test_url,safe=URL_SAFE)
+    assert encoded.isascii() and '%E6%9D%B1%E6%B5%B7' in encoded
+    assert quote(encoded,safe=URL_SAFE)==encoded
+    assert quote(LIST_URL.format(page=1),safe=URL_SAFE)==LIST_URL.format(page=1)
     sample='''東海大學 115 學年度第 1 學期行事曆\n九 月\n  14 一  第 1 學期上課開始\n  28 一  中秋節（放假一天）\n十 一 月\n  3~9 二~一 期中考試週\n一 月\n 18 一 寒假開始\n東海大學 115 學年度第 2 學期行事曆\n二 月\n 22 一 第 2 學期上課開始\n六 月\n 28 一 暑假開始\n'''
     rows=parse_layout(sample,115)
     assert any(x['date']=='2026-09-14' and '第1學期上課開始' in x['title'].replace(' ','') for x in rows)
