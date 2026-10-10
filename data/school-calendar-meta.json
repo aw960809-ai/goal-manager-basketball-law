@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "academicYear": 115,
-  "announcementTitle": "〖註冊-學籍公告〗本校115學年度行事曆",
-  "sourceAnnouncementUrl": "https://registcourse.thu.edu.tw/web/news/detail.php?cid=2&id=1360",
-  "sourcePdfUrl": "https://registcourse.thu.edu.tw/upload/registcourse/news_upload/1360_%E6%9D%B1%E6%B5%B7%E5%A4%A7%E5%AD%B8115%E5%AD%B8%E5%B9%B4%E5%BA%A6%E8%A1%8C%E4%BA%8B%E6%9B%86-1150311%E8%A1%8C%E6%94%BF%E6%9C%83%E8%AD%B0%E9%80%9A%E9%81%8E.pdf",
-  "checkedAt": "2026-10-08T00:20:00+08:00",
-  "updatedAt": "2026-10-08T00:20:00+08:00",
-  "eventCount": 39,
-  "pdfSha256": "",
-  "parseMethod": "verified-baseline-v1",
-  "status": "baseline"
+  "announcementTitle": "【註冊-學籍公告】本校115學年度行事曆",
+  "sourceAnnouncementUrl": "https://registcourse.thu.edu.tw/web/news/detail.php?cid=&id=1360",
+  "sourcePdfUrl": "https://registcourse.thu.edu.tw/upload/registcourse/news_upload/1360_東海大學115學年度行事曆-1150311行政會議通過.pdf",
+  "checkedAt": "2026-10-10T12:24:12.283015Z",
+  "updatedAt": "2026-10-10T12:24:12.283015Z",
+  "eventCount": 40,
+  "pdfSha256": "2f81be8712d6b90dcb8b2c7d0ac4772815d56ebbed04cc939137527eabe7d0e7",
+  "parseMethod": "pdftotext-bbox-weekday-v5",
+  "status": "ok"
 }
