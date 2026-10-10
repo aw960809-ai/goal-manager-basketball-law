@@ -14,6 +14,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import quote, urljoin
 from urllib.request import Request, urlopen
+from xml.etree import ElementTree as ET
 
 USER_AGENT='BasketballGoalManager-CalendarAutoFetch/0.9.1'
 URL_SAFE=":/?#[]@!$&'()*+,;=%"
@@ -82,15 +83,96 @@ def discover_pdf(detail_url:str):
     if not candidates:raise RuntimeError('calendar PDF attachment not found')
     return candidates[0]
 
+DATE_CELL_RX=re.compile(r'\d{1,2}(?:[~～\-–]\d{1,2})?')
+WEEKDAY_CELL_RX=re.compile(r'[一二三四五六日](?:[~～\-–][一二三四五六日])?')
+
+def extract_calendar_rows_from_bbox(xml:str)->str:
+    """Reconstruct table *rows* from the geographic PDF layout, never column-by-column text order.
+
+    Position ratios correspond to columns in THU official A4 calendar template.
+    If the university changes layout, fail closed rather than guessing dates.
+    """
+    root=ET.fromstring(xml)
+    all_rows=[]
+    for page_no,page in enumerate(root.iter(),1):
+        if page.tag.split('}')[-1]!='page':
+            continue
+        width=float(page.attrib['width'])
+        height=float(page.attrib['height'])
+        words=[]
+        for word in page.iter():
+            if word.tag.split('}')[-1]!='word':
+                continue
+            content=''.join(word.itertext()).strip()
+            if not content:
+                continue
+            try:
+                x_min=float(word.attrib['xMin'])
+                x_max=float(word.attrib['xMax'])
+                y_min=float(word.attrib['yMin'])
+                y_max=float(word.attrib['yMax'])
+            except (KeyError,ValueError) as exc:
+                raise RuntimeError('Invalid bbox word attributes') from exc
+            cy=(y_min+y_max)/2.0
+            x_mid=(x_min+x_max)/2.0 /width
+            if not .079<cy/height<.974:
+                continue
+            words.append((x_mid,cy,x_min,content))
+        day_tokens=sorted((w for w in words if .448<=w[0]<=.518),key=lambda w:w[1])
+        rows=[]
+        for token in day_tokens:
+            if not rows or abs(rows[-1][0]-token[1])>3.4:
+                rows.append((token[1],[token]))
+            else:
+                rows[-1][1].append(token)
+        count=0
+        for y,group in rows:
+            day=''.join(w[3] for w in sorted(group,key=lambda w:w[2])).replace(' ','')
+            if not DATE_CELL_RX.fullmatch(day):
+                continue
+            weekdays=sorted((w for w in words if .518<w[0]<.589 and abs(w[1]-y)<=4.5),key=lambda w:w[2])
+            weekday=''.join(w[3] for w in weekdays).replace(' ','')
+            if not WEEKDAY_CELL_RX.fullmatch(weekday):
+                continue
+            desc=sorted((w for w in words if w[0]>=.589 and abs(w[1]-y)<=4.5),key=lambda w:w[2])
+            title=''.join(w[3] for w in desc).strip()
+            # A long item at the end of the THU table may wrap onto the next
+            # physical PDF line without repeating the date/weekday cells.
+            # Only attach a *verified academic-year-end label* directly beneath
+            # its dated row; do not copy arbitrary text or invent dates.
+            if day=='31' and '學年度終了' not in title:
+                subsequent_y=min((cy for cy,grp in rows if cy>y+4.5),default=float('inf'))
+                continuation=sorted((w for w in words
+                                     if w[0]>=.589 and y+4.5<w[1]<=y+42
+                                     and w[1]<subsequent_y-2.5),
+                                    key=lambda w:(w[1],w[2]))
+                extra=''.join(w[3] for w in continuation).replace(' ','')
+                year_end=re.search(r'\d{3}學年度終了',extra)
+                if year_end:
+                    title=(title+' '+year_end.group()).strip()
+            if not title:
+                # The date still advances even if an uninteresting entry's title was omitted.
+                title='（表格空行）'
+            all_rows.append(f'{day} {weekday} {title}')
+            count+=1
+        if count<12:
+            raise RuntimeError(f'PDF table reconstruction yielded only {count} rows on page {page_no}; unsafe calendar template/layout')
+    if len(all_rows)<65:
+        raise RuntimeError(f'PDF table reconstruction yielded only {len(all_rows)} date rows')
+    return '\n'.join(all_rows)
+
 def pdf_layout_text(pdf:bytes)->str:
+    # Rebuild event table rows spatially rather than trusting column-flow text output.
     with tempfile.TemporaryDirectory() as td:
-        src=Path(td)/'calendar.pdf';src.write_bytes(pdf)
+        src=Path(td)/'calendar.pdf'
+        src.write_bytes(pdf)
         try:
-            cp=subprocess.run(['pdftotext','-layout',str(src),'-'],capture_output=True,check=True)
-        except FileNotFoundError as e:raise RuntimeError('pdftotext not installed') from e
-        text=cp.stdout.decode('utf-8','replace')
-        if len(text)<500:raise RuntimeError('calendar PDF text extraction too short')
-        return text
+            cp=subprocess.run(['pdftotext','-bbox-layout',str(src),'-'],capture_output=True,check=True)
+        except FileNotFoundError as e:
+            raise RuntimeError('pdftotext is not installed') from e
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError('pdftotext bbox extraction failed: '+e.stderr.decode('utf-8','replace')[-400:]) from e
+        return extract_calendar_rows_from_bbox(cp.stdout.decode('utf-8','replace'))
 
 def clean_title(s:str)->str:
     s=' '.join(str(s).replace('\u3000',' ').split())
@@ -144,7 +226,7 @@ def parse_layout(text:str,academic_year:int):
     for raw in text.splitlines():
         line=' '.join(raw.replace('\u3000',' ').split())
         if not line:continue
-        if not IMPORTANT_RX.search(line):continue
+        # Resolve every table row, even irrelevant items, to preserve month chronology.
         matches=list(DATE_WEEKDAY_RX.finditer(line))
         if not matches:continue
         # Layout rows can contain mini-calendar numbers at the left; the last date+weekday before the text is the event row.
@@ -154,6 +236,7 @@ def parse_layout(text:str,academic_year:int):
         event_date=resolve_event_date(start,m.group('weekday'),academic_year,previous_date)
         previous_date=event_date
         current_month=event_date.month
+        if not IMPORTANT_RX.search(title):continue
         def add(day,title2):
             d=date_iso(academic_year,current_month,day)
             try:date.fromisoformat(d)
@@ -238,7 +321,7 @@ def main():
     print('CALENDAR_PARSED_EVENTS',json.dumps([(e['date'],e['title']) for e in events],ensure_ascii=False),flush=True)
     validate(events,academic_year,len(old) if isinstance(old,list) else 0)
     checked=datetime.now(timezone.utc).isoformat().replace('+00:00','Z');sha=hashlib.sha256(pdf).hexdigest()
-    meta={'schemaVersion':1,'academicYear':academic_year,'announcementTitle':title,'sourceAnnouncementUrl':detail_url,'sourcePdfUrl':pdf_url,'checkedAt':checked,'updatedAt':checked,'eventCount':len(events),'pdfSha256':sha,'parseMethod':'pdftotext-layout-weekday-v2','status':'ok'}
+    meta={'schemaVersion':1,'academicYear':academic_year,'announcementTitle':title,'sourceAnnouncementUrl':detail_url,'sourcePdfUrl':pdf_url,'checkedAt':checked,'updatedAt':checked,'eventCount':len(events),'pdfSha256':sha,'parseMethod':'pdftotext-bbox-weekday-v5','status':'ok'}
     atomic_json(data_path,events);atomic_json(meta_path,meta)
     print(f'CALENDAR_AUTOFETCH_OK academicYear={academic_year} events={len(events)} pdfSha256={sha[:12]}')
     return 0
