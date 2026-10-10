@@ -9,7 +9,7 @@ import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import quote, urljoin
@@ -21,7 +21,7 @@ LIST_URL='https://registcourse.thu.edu.tw/web/news/list.php?page={page}'
 BASE='https://registcourse.thu.edu.tw/'
 CAL_TITLE_RX=re.compile(r'(?:本校)?(?P<year>\d{3})\s*學年度行事曆')
 PDF_RX=re.compile(r'\.pdf(?:$|\?)',re.I)
-DATE_WEEKDAY_RX=re.compile(r'(?<!\d)(?P<start>\d{1,2})(?:\s*[~～\-]\s*(?P<end>\d{1,2}))?\s+(?:一|二|三|四|五|六|日)(?:\s*[~～\-]\s*(?:一|二|三|四|五|六|日))?\s+(?P<title>.+)$')
+DATE_WEEKDAY_RX=re.compile(r'(?<!\d)(?P<start>\d{1,2})(?:\s*[~～\-]\s*(?P<end>\d{1,2}))?\s+(?P<weekday>[一二三四五六日])(?:\s*[~～\-]\s*[一二三四五六日])?\s+(?P<title>.+)$')
 MONTH_RX=re.compile(r'([一二三四五六七八九十]{1,2})\s*月')
 SEMESTER_RX=re.compile(r'(?P<year>\d{3})\s*學年度第\s*(?P<term>[12])\s*學期')
 IMPORTANT_RX=re.compile('|'.join([
@@ -108,6 +108,19 @@ def date_iso(academic_year:int,month:int,day:int)->str:
     year=start_year if month>=8 else start_year+1
     return f'{year:04d}-{month:02d}-{day:02d}'
 
+def resolve_event_date(day:int,weekday:str,academic_year:int,after:date|None)->date:
+    # Reconstruct month using weekdays and chronological event rows.
+    weekday_index={'一':0,'二':1,'三':2,'四':3,'五':4,'六':5,'日':6}[weekday]
+    start_year=academic_year+1911
+    for offset in range(12):
+        month=(7+offset)%12+1
+        year=start_year+(month<8)
+        try:candidate=date(year,month,day)
+        except ValueError:continue
+        if candidate.weekday()==weekday_index and (after is None or candidate>=after):
+            return candidate
+    raise RuntimeError(f'No chronological calendar date for {day}{weekday} after {after}')
+
 def normalize_title(title:str,academic_year:int)->str:
     t=clean_title(title)
     # PDF often inserts spaces between the semester number and text.
@@ -127,23 +140,24 @@ def normalize_title(title:str,academic_year:int)->str:
     return replacements.get(t,t)
 
 def parse_layout(text:str,academic_year:int):
-    current_month=None;events=[];seen=set()
+    events=[];seen=set();previous_date=None
     for raw in text.splitlines():
         line=' '.join(raw.replace('\u3000',' ').split())
         if not line:continue
-        compact=line.replace(' ','')
-        mm=re.search(r'(十二|十一|十|九|八|七|六|五|四|三|二|一)月',compact)
-        if mm and mm.group(1) in MONTHS:current_month=MONTHS[mm.group(1)]
-        if not current_month or not IMPORTANT_RX.search(line):continue
+        if not IMPORTANT_RX.search(line):continue
         matches=list(DATE_WEEKDAY_RX.finditer(line))
         if not matches:continue
         # Layout rows can contain mini-calendar numbers at the left; the last date+weekday before the text is the event row.
         m=matches[-1];title=clean_title(m.group('title'))
         if not IMPORTANT_RX.search(title):continue
         start=int(m.group('start'));end=int(m.group('end') or start)
+        event_date=resolve_event_date(start,m.group('weekday'),academic_year,previous_date)
+        previous_date=event_date
+        current_month=event_date.month
         def add(day,title2):
-            try:d=date_iso(academic_year,current_month,day)
-            except Exception:return
+            d=date_iso(academic_year,current_month,day)
+            try:date.fromisoformat(d)
+            except ValueError as exc:raise RuntimeError('Invalid calendar date: '+d) from exc
             k=(d,title2)
             if k in seen:return
             seen.add(k);events.append({'date':d,'title':title2,'type':classify(title2),'meta':f'東海大學 {academic_year} 學年度｜自動同步'})
@@ -204,9 +218,11 @@ def self_test():
     assert encoded.isascii() and '%E6%9D%B1%E6%B5%B7' in encoded
     assert quote(encoded,safe=URL_SAFE)==encoded
     assert quote(LIST_URL.format(page=1),safe=URL_SAFE)==LIST_URL.format(page=1)
-    sample='''東海大學 115 學年度第 1 學期行事曆\n九 月\n  14 一  第 1 學期上課開始\n  28 一  中秋節（放假一天）\n十 一 月\n  3~9 二~一 期中考試週\n一 月\n 18 一 寒假開始\n東海大學 115 學年度第 2 學期行事曆\n二 月\n 22 一 第 2 學期上課開始\n六 月\n 28 一 暑假開始\n'''
+    sample='''東海大學 115 學年度第 1 學期行事曆\n九\n月\n  14 一  第 1 學期上課開始\n  25 五  中秋節（放假一天）\n  28 一  孔子誕辰紀念日、教師節（放假一天）\n十 一 月\n  3~9 二~一 期中考試週\n一 月\n 18 一 寒假開始\n東海大學 115 學年度第 2 學期行事曆\n二 月\n 22 一 第 2 學期上課開始\n六 月\n 28 一 暑假開始\n'''
     rows=parse_layout(sample,115)
     assert any(x['date']=='2026-09-14' and '第1學期上課開始' in x['title'].replace(' ','') for x in rows)
+    assert any(x['date']=='2026-09-25' and x['title']=='中秋節｜放假一天' for x in rows)
+    assert any(x['date']=='2026-09-28' and '教師節' in x['title'] for x in rows)
     assert any(x['date']=='2026-11-03' and x['title']=='期中考試週開始' for x in rows)
     assert any(x['date']=='2026-11-09' and x['title']=='期中考試週結束' for x in rows)
     assert any(x['date']=='2027-02-22' and '第2學期上課開始' in x['title'].replace(' ','') for x in rows)
@@ -222,7 +238,7 @@ def main():
     print('CALENDAR_PARSED_EVENTS',json.dumps([(e['date'],e['title']) for e in events],ensure_ascii=False),flush=True)
     validate(events,academic_year,len(old) if isinstance(old,list) else 0)
     checked=datetime.now(timezone.utc).isoformat().replace('+00:00','Z');sha=hashlib.sha256(pdf).hexdigest()
-    meta={'schemaVersion':1,'academicYear':academic_year,'announcementTitle':title,'sourceAnnouncementUrl':detail_url,'sourcePdfUrl':pdf_url,'checkedAt':checked,'updatedAt':checked,'eventCount':len(events),'pdfSha256':sha,'parseMethod':'pdftotext-layout-v1','status':'ok'}
+    meta={'schemaVersion':1,'academicYear':academic_year,'announcementTitle':title,'sourceAnnouncementUrl':detail_url,'sourcePdfUrl':pdf_url,'checkedAt':checked,'updatedAt':checked,'eventCount':len(events),'pdfSha256':sha,'parseMethod':'pdftotext-layout-weekday-v2','status':'ok'}
     atomic_json(data_path,events);atomic_json(meta_path,meta)
     print(f'CALENDAR_AUTOFETCH_OK academicYear={academic_year} events={len(events)} pdfSha256={sha[:12]}')
     return 0
