@@ -110,6 +110,8 @@ def date_iso(academic_year:int,month:int,day:int)->str:
 
 def normalize_title(title:str,academic_year:int)->str:
     t=clean_title(title)
+    # PDF often inserts spaces between the semester number and text.
+    t=re.sub(r'第\s*([12])\s*學期上課開始',r'第\1學期上課開始',t)
     replacements={
       '中秋節（放假一天）':'中秋節｜放假一天','孔子誕辰紀念日、教師節（放假一天）':'孔子誕辰紀念日、教師節｜放假一天',
       '國慶日（放假一天）':'國慶日｜放假一天','國慶日（補假一天）':'國慶日補假｜放假一天',
@@ -169,6 +171,22 @@ def validate(events,academic_year:int,old_count:int=0):
     must=['第1學期上課開始','第2學期上課開始','寒假開始','暑假開始']
     missing=[x for x in must if x not in titles]
     if missing:raise RuntimeError('calendar key milestones missing: '+','.join(missing))
+    # Verify parsed dates against the school's 115 academic-year announcement.
+    # A new academic year must be reviewed separately before using anchors.
+    if academic_year==115:
+        anchors={
+            ('2026-09-14','第1學期上課開始'),
+            ('2026-09-25','中秋節｜放假一天'),
+            ('2026-09-28','孔子誕辰紀念日、教師節｜放假一天'),
+            ('2026-10-09','國慶日補假｜放假一天'),
+            ('2026-10-10','國慶日｜放假一天'),
+            ('2027-01-18','寒假開始'),
+            ('2027-02-22','第2學期上課開始'),
+            ('2027-06-28','暑假開始'),
+        }
+        actual={(x['date'],x['title']) for x in events}
+        absent=sorted(anchors-actual)
+        if absent:raise RuntimeError('official calendar anchor mismatch: '+repr(absent))
     if old_count and len(events)<max(20,int(old_count*.50)):raise RuntimeError(f'destructive calendar shrink old={old_count} new={len(events)}')
     if old_count and len(events)>old_count*2.5:raise RuntimeError(f'calendar expansion suspicious old={old_count} new={len(events)}')
 
@@ -179,6 +197,8 @@ def atomic_json(path:Path,obj):
     json.loads(tmp.read_text(encoding='utf-8'));tmp.replace(path)
 
 def self_test():
+    assert normalize_title('第 1 學期上課開始',115)=='第1學期上課開始'
+    assert normalize_title('第 2 學期上課開始',115)=='第2學期上課開始'
     test_url='https://example.org/東海大學115學年度行事曆.pdf?revision=1'
     encoded=quote(test_url,safe=URL_SAFE)
     assert encoded.isascii() and '%E6%9D%B1%E6%B5%B7' in encoded
@@ -198,7 +218,9 @@ def main():
     repo=Path(args.repo).resolve();data_path=repo/'data/school-calendar.json';meta_path=repo/'data/school-calendar-meta.json'
     old=json.loads(data_path.read_text(encoding='utf-8')) if data_path.exists() else []
     academic_year,detail_url,title=discover_latest();pdf_url=discover_pdf(detail_url);pdf=fetch_bytes(pdf_url);layout=pdf_layout_text(pdf)
-    events=parse_layout(layout,academic_year);validate(events,academic_year,len(old) if isinstance(old,list) else 0)
+    events=parse_layout(layout,academic_year)
+    print('CALENDAR_PARSED_EVENTS',json.dumps([(e['date'],e['title']) for e in events],ensure_ascii=False),flush=True)
+    validate(events,academic_year,len(old) if isinstance(old,list) else 0)
     checked=datetime.now(timezone.utc).isoformat().replace('+00:00','Z');sha=hashlib.sha256(pdf).hexdigest()
     meta={'schemaVersion':1,'academicYear':academic_year,'announcementTitle':title,'sourceAnnouncementUrl':detail_url,'sourcePdfUrl':pdf_url,'checkedAt':checked,'updatedAt':checked,'eventCount':len(events),'pdfSha256':sha,'parseMethod':'pdftotext-layout-v1','status':'ok'}
     atomic_json(data_path,events);atomic_json(meta_path,meta)
