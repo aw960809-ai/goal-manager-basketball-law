@@ -2,13 +2,13 @@
   "schemaVersion": 1,
   "meta": {
     "kind": "activity",
-    "updatedAt": "2026-11-12T08:26:12.698131+00:00",
+    "updatedAt": "2026-11-12T10:24:45.193426+00:00",
     "count": 34,
     "retiredThisRun": 21,
     "revivedThisRun": 0,
-    "retiredTotal": 597,
+    "retiredTotal": 618,
     "revivedTotal": 0,
-    "retainedOnFailure": 29,
+    "retainedOnFailure": 30,
     "carriedMissing": 0,
     "needsReview": 0,
     "policy": "expired-immediate; missing-two-hits-plus-30-days; failed-source-no-miss; source-reappearance-auto-revive"
