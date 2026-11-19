@@ -1,15 +1,15 @@
 {
   "meta": {
-    "updatedAt": "2026-11-18T10:48:35.056067+00:00",
+    "updatedAt": "2026-11-19T08:53:57.716770+00:00",
     "sources": 4,
     "events": 37,
     "ok": 2,
     "failed": 5,
     "errors": [
-      "curl: (28) Connection timed out after 10001 milliseconds",
       "curl: (28) Connection timed out after 10002 milliseconds",
       "curl: (28) Connection timed out after 10002 milliseconds",
       "curl: (28) Connection timed out after 10002 milliseconds",
+      "curl: (28) Connection timed out after 10000 milliseconds",
       "curl: (28) Connection timed out after 10002 milliseconds"
     ],
     "generator": "V96.6.11.1.1 Multi-Source AutoFetch + Activity Radar",
@@ -20,8 +20,8 @@
     "failedSources": 1,
     "rejectedItems": 0,
     "fetchFailedItems": 5,
-    "skippedPast": 15,
-    "fitFiltered": 4,
+    "skippedPast": 13,
+    "fitFiltered": 7,
     "semanticDuplicates": 0,
     "retiredThisRun": 25,
     "revivedThisRun": 0,
@@ -415,7 +415,7 @@
       "autofetch": {
         "engine": "V96.6.11.1.1",
         "sourceId": "pathfinder_official",
-        "fetchedAt": "2026-11-18T10:48:33.991138+00:00"
+        "fetchedAt": "2026-11-19T08:53:56.299477+00:00"
       },
       "fitScore": 98,
       "fitTier": "高適配",
@@ -438,7 +438,7 @@
       "eligibilityReason": "",
       "semanticDuplicateOf": "",
       "firstSeen": "2026-10-30T07:14:59.958320+00:00",
-      "lastSeen": "2026-11-18T10:48:35.055503+00:00",
+      "lastSeen": "2026-11-19T08:53:57.716232+00:00",
       "missCount": 0,
       "needsReview": false
     },
@@ -467,7 +467,7 @@
       "autofetch": {
         "engine": "V96.6.11.1.1",
         "sourceId": "mofa_working_holiday",
-        "fetchedAt": "2026-11-18T10:48:35.048415+00:00"
+        "fetchedAt": "2026-11-19T08:53:57.709899+00:00"
       },
       "fitScore": 94,
       "fitTier": "高適配",
@@ -489,7 +489,7 @@
       "eligibilityReason": "",
       "semanticDuplicateOf": "",
       "firstSeen": "2026-09-09T12:50:00.937440+00:00",
-      "lastSeen": "2026-11-18T10:48:35.055503+00:00",
+      "lastSeen": "2026-11-19T08:53:57.716232+00:00",
       "missCount": 0,
       "needsReview": false,
       "sourceId": "mofa_working_holiday",
